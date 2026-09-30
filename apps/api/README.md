@@ -14,6 +14,13 @@ NestJS HTTP API입니다. 현재 구현 범위는 이메일 인증, 사용자 �
 - `PATCH /api/posts/:id` — 작성자만 가능
 - `PATCH /api/posts/:id/status` — 작성자의 예약·완료 상태 변경
 - `DELETE /api/posts/:id` — 작성자 소프트 삭제
+- `POST /api/chats/rooms` — 게시물 기반 채팅방 생성
+- `GET /api/chats/rooms` — 참여 중인 채팅방
+- `GET /api/chats/rooms/:roomId/messages`
+- `POST /api/chats/rooms/:roomId/messages`
+- `GET /api/chats/rooms/:roomId/events` — SSE 실시간 메시지
+
+서버 실행 후 `http://localhost:3000/api`에서 현재 구현 현황을 브라우저로 확인할 수 있습니다.
 - `GET /api/posts/nearby?latitude=37.5665&longitude=126.978&radiusKm=3&sort=distance`
 
 루트의 `.env.example`을 `.env`로 복사한 뒤 PostgreSQL/PostGIS를 실행해야 서버가 시작됩니다.
