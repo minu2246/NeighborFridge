@@ -8,6 +8,7 @@ import { ChatScreen } from './screens/ChatScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
+import { PostDetailScreen } from './screens/PostDetailScreen';
 import { FoodPost, NewPostInput, TabName } from './types';
 
 const tabs: { key: TabName; icon: string; label: string }[] = [
@@ -20,6 +21,8 @@ export default function App() {
   const [online, setOnline] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [posts, setPosts] = useState<FoodPost[]>(demoPosts);
+  const [selectedPost, setSelectedPost] = useState<FoodPost | null>(null);
+  const [chatItem, setChatItem] = useState<string | undefined>();
   useEffect(() => { void getHealth().then(setOnline); }, []);
   async function handleLogin(email: string, password: string) { await login(email, password); setAuthenticated(true); }
   async function handleRegister(email: string, nickname: string, password: string) { await register(email, nickname, password); setAuthenticated(true); }
@@ -28,10 +31,11 @@ export default function App() {
     setTab('home');
   }
   if (!authenticated) return <SafeAreaView style={styles.outer}><View style={styles.phone}><AuthScreen onLogin={handleLogin} onRegister={handleRegister} onDemo={() => setAuthenticated(true)} /></View></SafeAreaView>;
+  if (selectedPost) return <SafeAreaView style={styles.outer}><View style={styles.phone}><PostDetailScreen post={selectedPost} onBack={() => setSelectedPost(null)} onChat={() => { setChatItem(selectedPost.name); setSelectedPost(null); setTab('chat'); }} /></View></SafeAreaView>;
   return <SafeAreaView style={styles.outer}><StatusBar style="dark" />
     <View style={styles.phone}>
       <View style={[styles.connection, online ? styles.online : styles.demo]}><Text style={styles.connectionText}>{online ? '● API 연결됨' : '● 데모 데이터'}</Text></View>
-      <View style={styles.content}>{tab === 'home' ? <HomeScreen posts={posts} /> : tab === 'add' ? <AddScreen onSubmit={addPost} /> : tab === 'chat' ? <ChatScreen /> : <ProfileScreen />}</View>
+      <View style={styles.content}>{tab === 'home' ? <HomeScreen posts={posts} onSelectPost={setSelectedPost} /> : tab === 'add' ? <AddScreen onSubmit={addPost} /> : tab === 'chat' ? <ChatScreen startItem={chatItem} /> : <ProfileScreen />}</View>
       <View style={styles.nav}>{tabs.map((item) => <Pressable key={item.key} onPress={() => setTab(item.key)} style={styles.navItem}>
         <Text style={[styles.navIcon, tab === item.key && styles.active]}>{item.icon}</Text><Text style={[styles.navLabel, tab === item.key && styles.active]}>{item.label}</Text>
       </Pressable>)}</View>

@@ -1,9 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { FoodPost } from '../types';
 
-export function PostCard({ post }: { post: FoodPost }) {
+export function PostCard({ post, onPress }: { post: FoodPost; onPress?: () => void }) {
   return (
-    <Pressable style={styles.card}>
+    <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressed]} onPress={onPress}>
       <View style={[styles.image, { backgroundColor: post.color }]}><Text style={styles.emoji}>{post.emoji}</Text></View>
       <View style={styles.content}>
         <View style={styles.topline}>
@@ -22,6 +22,7 @@ export function PostCard({ post }: { post: FoodPost }) {
 
 const styles = StyleSheet.create({
   card: { flexDirection: 'row', backgroundColor: '#FFF', padding: 12, borderRadius: 18, marginBottom: 12, borderWidth: 1, borderColor: '#E7EFEA' },
+  pressed: { opacity: 0.75, transform: [{ scale: 0.99 }] },
   image: { width: 92, height: 92, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 46 }, content: { flex: 1, marginLeft: 14 },
   topline: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

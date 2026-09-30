@@ -2,7 +2,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PostCard } from '../components/PostCard';
 import { FoodPost } from '../types';
 
-export function HomeScreen({ posts }: { posts: FoodPost[] }) {
+export function HomeScreen({ posts, onSelectPost }: { posts: FoodPost[]; onSelectPost: (post: FoodPost) => void }) {
   return (
     <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
@@ -15,7 +15,7 @@ export function HomeScreen({ posts }: { posts: FoodPost[] }) {
       </View>
       <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>가까운 이웃 냉장고</Text><Text style={styles.filter}>거리순 ⌄</Text></View>
       <View style={styles.chips}><Text style={[styles.chip, styles.chipActive]}>전체</Text><Text style={styles.chip}>나눔</Text><Text style={styles.chip}>교환</Text><Text style={styles.chip}>한끼</Text></View>
-      {posts.map((post) => <PostCard key={post.id} post={post} />)}
+      {posts.map((post) => <PostCard key={post.id} post={post} onPress={() => onSelectPost(post)} />)}
     </ScrollView>
   );
 }
