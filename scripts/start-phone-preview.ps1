@@ -62,8 +62,10 @@ $env:EXPO_PUBLIC_USE_LOCAL_STORE = 'true'
 $env:EXPO_NO_TELEMETRY = '1'
 $env:LOCALAPPDATA = Join-Path $runtimeRoot 'localappdata'
 $env:DOTSLASH_CACHE = Join-Path $runtimeRoot 'dotslash'
+$env:__UNSAFE_EXPO_HOME_DIRECTORY = Join-Path $runtimeRoot 'expo-home'
 New-Item -ItemType Directory -Force -Path $env:LOCALAPPDATA | Out-Null
 New-Item -ItemType Directory -Force -Path $env:DOTSLASH_CACHE | Out-Null
+New-Item -ItemType Directory -Force -Path $env:__UNSAFE_EXPO_HOME_DIRECTORY | Out-Null
 Write-Host ''
 Write-Host 'Open Expo Go on the phone and scan the QR code below.'
 Write-Host 'Press Ctrl+C when mobile testing is finished, then run npm run phone:stop.'
