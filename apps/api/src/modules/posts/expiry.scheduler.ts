@@ -1,0 +1,17 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
+import { PostsRepository } from './posts.repository';
+
+@Injectable()
+export class ExpiryScheduler {
+  private readonly logger = new Logger(ExpiryScheduler.name);
+
+  constructor(private readonly postsRepository: PostsRepository) {}
+
+  @Cron('0 */15 * * * *', { name: 'expire-posts', timeZone: 'Asia/Seoul' })
+  async expirePosts(): Promise<number> {
+    const ids = await this.postsRepository.expirePastDue();
+    if (ids.length > 0) this.logger.log(`Expired ${ids.length} posts`);
+    return ids.length;
+  }
+}

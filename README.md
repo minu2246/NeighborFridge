@@ -31,3 +31,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\audit-storage.ps1
 - Push: Firebase Cloud Messaging
 
 현재 저장소는 시스템 설계와 MVP 구현을 시작하기 위한 초기 구조입니다.
+
+## 개발 시작
+
+```powershell
+npm install
+docker compose up -d
+npm run start:api
+```
+
+Docker가 없는 환경에서도 `npm test`와 `npm run build`로 API 로직을 검증할 수 있습니다. npm 다운로드 캐시는 프로젝트 내부 `storage/cache/npm`에 저장됩니다.
