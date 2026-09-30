@@ -12,7 +12,21 @@ if (-not (Test-Path -LiteralPath (Join-Path $projectRepo '.git'))) {
     throw 'This script must remain in the NeighborFridge repository root.'
 }
 
+# The repository can be created by the isolated Codex account and later used by
+# the normal Windows account. Trust only this exact checkout before querying it.
+$safeProjectRepo = $projectRepo.Replace('\', '/')
+$safeDirectories = @(& $projectGit config --global --get-all safe.directory)
+if ($safeDirectories -notcontains $safeProjectRepo) {
+    & $projectGit config --global --add safe.directory $safeProjectRepo
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Could not register the NeighborFridge checkout as a safe Git directory.'
+    }
+}
+
 $existingRemote = & $projectGit -C $projectRepo remote get-url origin
+if ($LASTEXITCODE -ne 0) {
+    throw 'Could not read the origin URL after registering the safe directory.'
+}
 if ($existingRemote -ne $projectRemote) {
     throw 'The origin URL differs from the expected NeighborFridge repository.'
 }
