@@ -8,6 +8,7 @@ import { PostsModule } from './modules/posts/posts.module';
 import { UsersModule } from './modules/users/users.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { DeveloperModule } from './modules/developer/developer.module';
+import { LocalStoreModule } from './modules/local-store/local-store.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { DeveloperModule } from './modules/developer/developer.module';
     PostsModule,
     ChatModule,
     DeveloperModule,
+    LocalStoreModule,
   ],
 })
 export class AppModule {}

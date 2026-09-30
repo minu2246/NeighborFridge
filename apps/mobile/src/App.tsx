@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { getHealth, login, register } from './api/client';
+import { createLocalPost, getHealth, listLocalPosts, login, register } from './api/client';
 import { demoPosts } from './data/demo';
 import { AddScreen } from './screens/AddScreen';
 import { ChatScreen } from './screens/ChatScreen';
@@ -24,10 +24,16 @@ export default function App() {
   const [selectedPost, setSelectedPost] = useState<FoodPost | null>(null);
   const [chatItem, setChatItem] = useState<string | undefined>();
   useEffect(() => { void getHealth().then(setOnline); }, []);
+  useEffect(() => {
+    if (!authenticated) return;
+    void listLocalPosts<FoodPost>().then((saved) => { if (saved.length > 0) setPosts(saved); }).catch(() => undefined);
+  }, [authenticated]);
   async function handleLogin(email: string, password: string) { await login(email, password); setAuthenticated(true); }
   async function handleRegister(email: string, nickname: string, password: string) { await register(email, nickname, password); setAuthenticated(true); }
-  function addPost(input: NewPostInput) {
-    setPosts((current) => [{ id: String(Date.now()), emoji: '🥕', name: input.name, title: input.title, type: input.type, distance: '0km', dDay: input.expiryDate, place: input.place, color: '#E6F4DE' }, ...current]);
+  async function addPost(input: NewPostInput) {
+    const draft = { emoji: '🥕', name: input.name, title: input.title, type: input.type, distance: '0km', dDay: input.expiryDate, place: input.place, color: '#E6F4DE' };
+    const saved = await createLocalPost<FoodPost>(draft).catch(() => ({ id: String(Date.now()), ...draft }));
+    setPosts((current) => [saved, ...current]);
     setTab('home');
   }
   if (!authenticated) return <SafeAreaView style={styles.outer}><View style={styles.phone}><AuthScreen onLogin={handleLogin} onRegister={handleRegister} onDemo={() => setAuthenticated(true)} /></View></SafeAreaView>;

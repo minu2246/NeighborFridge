@@ -9,6 +9,6 @@ import { PasswordService } from './password.service';
 @Module({
   controllers: [AuthController],
   providers: [UsersRepository, PasswordService, JwtTokenService, AuthService, JwtAuthGuard],
-  exports: [JwtTokenService, JwtAuthGuard],
+  exports: [JwtTokenService, JwtAuthGuard, PasswordService],
 })
 export class AuthModule {}

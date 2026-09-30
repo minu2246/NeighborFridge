@@ -44,3 +44,7 @@ npm run start:web
 Docker가 없는 환경에서도 `npm test`와 `npm run build`로 API 로직을 검증할 수 있습니다. npm 다운로드 캐시는 프로젝트 내부 `storage/cache/npm`에 저장됩니다.
 
 모바일 앱은 Expo 기반이며 `npm run start:web`으로 브라우저에서 동일한 화면을 확인할 수 있습니다.
+
+## 프로젝트 내부 로컬 저장 모드
+
+Docker 없이 개발할 때는 `LOCAL_STORE_ENABLED=true`로 API를 실행할 수 있습니다. 회원과 게시물, 채팅 메시지는 `storage/db/neighbor-fridge-local.sqlite`에 저장되며 Git에는 포함되지 않습니다. 운영 환경에서는 이 모드를 끄고 PostgreSQL/PostGIS를 사용합니다.

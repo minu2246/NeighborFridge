@@ -4,6 +4,7 @@ export interface AuthResponse {
   accessToken: string;
   user: { id: string; email: string; nickname: string };
 }
+const USE_LOCAL_STORE = process.env.EXPO_PUBLIC_USE_LOCAL_STORE === 'true';
 
 export async function getHealth(): Promise<boolean> {
   try {
@@ -28,9 +29,12 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
 }
 
 export function login(email: string, password: string): Promise<AuthResponse> {
-  return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+  return request(USE_LOCAL_STORE ? '/local/auth/login' : '/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
 }
 
 export function register(email: string, nickname: string, password: string): Promise<AuthResponse> {
-  return request('/auth/register', { method: 'POST', body: JSON.stringify({ email, nickname, password }) });
+  return request(USE_LOCAL_STORE ? '/local/auth/register' : '/auth/register', { method: 'POST', body: JSON.stringify({ email, nickname, password }) });
 }
+
+export function listLocalPosts<T>(): Promise<T[]> { return request('/local/posts', { method: 'GET' }); }
+export function createLocalPost<T>(post: Omit<T, 'id'>): Promise<T> { return request('/local/posts', { method: 'POST', body: JSON.stringify(post) }); }

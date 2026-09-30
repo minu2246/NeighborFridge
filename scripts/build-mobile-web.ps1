@@ -12,6 +12,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $projectRoot '.project-root'))) {
 }
 
 $env:EXPO_NO_TELEMETRY = '1'
+$env:EXPO_PUBLIC_USE_LOCAL_STORE = 'true'
 if (-not $env:EXPO_PUBLIC_API_URL) {
     $env:EXPO_PUBLIC_API_URL = 'http://localhost:3000/api'
 }
