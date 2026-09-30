@@ -28,3 +28,18 @@ export interface Neighborhood {
   radiusKm: 1 | 3 | 5;
   verifiedAt?: string;
 }
+
+export interface ChatTarget {
+  roomId: string;
+  item: string;
+  emoji: string;
+  neighborName: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  roomId: string;
+  sender: string;
+  message: string;
+  sentAt: string;
+}

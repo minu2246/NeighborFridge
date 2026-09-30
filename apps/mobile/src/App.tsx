@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { createLocalPost, getHealth, getNeighborhood, listLocalPosts, login, register, saveNeighborhood } from './api/client';
 import { demoPosts } from './data/demo';
 import { AddScreen } from './screens/AddScreen';
@@ -10,7 +10,7 @@ import { AuthScreen } from './screens/AuthScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { PostDetailScreen } from './screens/PostDetailScreen';
 import { LocationScreen } from './screens/LocationScreen';
-import { FoodPost, Neighborhood, NewPostInput, TabName } from './types';
+import { ChatTarget, FoodPost, Neighborhood, NewPostInput, TabName } from './types';
 
 const tabs: { key: TabName; icon: string; label: string }[] = [
   { key: 'home', icon: '⌂', label: '동네' }, { key: 'add', icon: '+', label: '등록' },
@@ -23,10 +23,19 @@ export default function App() {
   const [authenticated, setAuthenticated] = useState(false);
   const [posts, setPosts] = useState<FoodPost[]>(demoPosts);
   const [selectedPost, setSelectedPost] = useState<FoodPost | null>(null);
-  const [chatItem, setChatItem] = useState<string | undefined>();
+  const [chatTarget, setChatTarget] = useState<ChatTarget | undefined>();
   const [neighborhood, setNeighborhood] = useState<Neighborhood | null>(null);
   const [locationChecked, setLocationChecked] = useState(false);
   useEffect(() => { void getHealth().then(setOnline); }, []);
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !authenticated) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (selectedPost) { setSelectedPost(null); return true; }
+      if (tab !== 'home') { setTab('home'); return true; }
+      return true;
+    });
+    return () => subscription.remove();
+  }, [authenticated, selectedPost, tab]);
   useEffect(() => {
     if (!authenticated) return;
     void listLocalPosts<FoodPost>().then((saved) => { if (saved.length > 0) setPosts(saved); }).catch(() => undefined);
@@ -46,11 +55,11 @@ export default function App() {
   }
   if (!authenticated) return <SafeAreaView style={styles.outer}><View style={styles.phone}><AuthScreen onLogin={handleLogin} onRegister={handleRegister} onDemo={() => setAuthenticated(true)} /></View></SafeAreaView>;
   if (locationChecked && !neighborhood) return <SafeAreaView style={styles.outer}><View style={styles.phone}><LocationScreen onComplete={updateNeighborhood} /></View></SafeAreaView>;
-  if (selectedPost) return <SafeAreaView style={styles.outer}><View style={styles.phone}><PostDetailScreen post={selectedPost} onBack={() => setSelectedPost(null)} onChat={() => { setChatItem(selectedPost.name); setSelectedPost(null); setTab('chat'); }} /></View></SafeAreaView>;
+  if (selectedPost) return <SafeAreaView style={styles.outer}><View style={styles.phone}><PostDetailScreen post={selectedPost} onBack={() => setSelectedPost(null)} onChat={() => { setChatTarget({ roomId: `post-${selectedPost.id}`, item: selectedPost.name, emoji: selectedPost.emoji, neighborName: '게시물 이웃' }); setSelectedPost(null); setTab('chat'); }} /></View></SafeAreaView>;
   return <SafeAreaView style={styles.outer}><StatusBar style="dark" />
     <View style={styles.phone}>
       <View style={[styles.connection, online ? styles.online : styles.demo]}><Text style={styles.connectionText}>{online ? '● API 연결됨' : '● 데모 데이터'}</Text></View>
-      <View style={styles.content}>{tab === 'home' ? <HomeScreen posts={posts} neighborhood={neighborhood} onNeighborhoodChange={updateNeighborhood} onSelectPost={setSelectedPost} /> : tab === 'add' ? <AddScreen onSubmit={addPost} /> : tab === 'chat' ? <ChatScreen startItem={chatItem} /> : <ProfileScreen neighborhood={neighborhood} onResetLocation={() => setNeighborhood(null)} />}</View>
+      <View style={styles.content}>{tab === 'home' ? <HomeScreen posts={posts} neighborhood={neighborhood} onNeighborhoodChange={updateNeighborhood} onSelectPost={setSelectedPost} /> : tab === 'add' ? <AddScreen onSubmit={addPost} /> : tab === 'chat' ? <ChatScreen startTarget={chatTarget} /> : <ProfileScreen neighborhood={neighborhood} onResetLocation={() => setNeighborhood(null)} />}</View>
       <View style={styles.nav}>{tabs.map((item) => <Pressable key={item.key} onPress={() => setTab(item.key)} style={styles.navItem}>
         <Text style={[styles.navIcon, tab === item.key && styles.active]}>{item.icon}</Text><Text style={[styles.navLabel, tab === item.key && styles.active]}>{item.label}</Text>
       </Pressable>)}</View>
