@@ -12,3 +12,11 @@ export interface FoodPost {
   place: string;
   color: string;
 }
+
+export interface NewPostInput {
+  name: string;
+  title: string;
+  type: TradeType;
+  expiryDate: string;
+  place: string;
+}

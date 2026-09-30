@@ -1,12 +1,14 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { getHealth } from './api/client';
+import { getHealth, login, register } from './api/client';
+import { demoPosts } from './data/demo';
 import { AddScreen } from './screens/AddScreen';
 import { ChatScreen } from './screens/ChatScreen';
 import { HomeScreen } from './screens/HomeScreen';
+import { AuthScreen } from './screens/AuthScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
-import { TabName } from './types';
+import { FoodPost, NewPostInput, TabName } from './types';
 
 const tabs: { key: TabName; icon: string; label: string }[] = [
   { key: 'home', icon: '⌂', label: '동네' }, { key: 'add', icon: '+', label: '등록' },
@@ -16,12 +18,20 @@ const tabs: { key: TabName; icon: string; label: string }[] = [
 export default function App() {
   const [tab, setTab] = useState<TabName>('home');
   const [online, setOnline] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [posts, setPosts] = useState<FoodPost[]>(demoPosts);
   useEffect(() => { void getHealth().then(setOnline); }, []);
-  const Screen = tab === 'home' ? HomeScreen : tab === 'add' ? AddScreen : tab === 'chat' ? ChatScreen : ProfileScreen;
+  async function handleLogin(email: string, password: string) { await login(email, password); setAuthenticated(true); }
+  async function handleRegister(email: string, nickname: string, password: string) { await register(email, nickname, password); setAuthenticated(true); }
+  function addPost(input: NewPostInput) {
+    setPosts((current) => [{ id: String(Date.now()), emoji: '🥕', name: input.name, title: input.title, type: input.type, distance: '0km', dDay: input.expiryDate, place: input.place, color: '#E6F4DE' }, ...current]);
+    setTab('home');
+  }
+  if (!authenticated) return <SafeAreaView style={styles.outer}><View style={styles.phone}><AuthScreen onLogin={handleLogin} onRegister={handleRegister} onDemo={() => setAuthenticated(true)} /></View></SafeAreaView>;
   return <SafeAreaView style={styles.outer}><StatusBar style="dark" />
     <View style={styles.phone}>
       <View style={[styles.connection, online ? styles.online : styles.demo]}><Text style={styles.connectionText}>{online ? '● API 연결됨' : '● 데모 데이터'}</Text></View>
-      <View style={styles.content}><Screen /></View>
+      <View style={styles.content}>{tab === 'home' ? <HomeScreen posts={posts} /> : tab === 'add' ? <AddScreen onSubmit={addPost} /> : tab === 'chat' ? <ChatScreen /> : <ProfileScreen />}</View>
       <View style={styles.nav}>{tabs.map((item) => <Pressable key={item.key} onPress={() => setTab(item.key)} style={styles.navItem}>
         <Text style={[styles.navIcon, tab === item.key && styles.active]}>{item.icon}</Text><Text style={[styles.navLabel, tab === item.key && styles.active]}>{item.label}</Text>
       </Pressable>)}</View>
