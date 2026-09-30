@@ -11,7 +11,10 @@
     "test": "npm run test --workspace @neighbor-fridge/api",
     "start:api": "npm run start:dev --workspace @neighbor-fridge/api",
     "start:mobile": "npm run start --workspace @neighbor-fridge/mobile",
-    "start:web": "npm run web --workspace @neighbor-fridge/mobile"
+    "start:web": "npm run web --workspace @neighbor-fridge/mobile",
+    "phone:check": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-phone-preview.ps1 -CheckOnly",
+    "phone:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-phone-preview.ps1",
+    "phone:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-phone-preview.ps1"
   },
   "engines": {
     "node": ">=22"

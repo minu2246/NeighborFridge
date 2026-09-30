@@ -26,7 +26,8 @@ $relativeTargets = @(
     'logs',
     'storage\downloads',
     'storage\cache',
-    'storage\db'
+    'storage\db',
+    'storage\runtime'
 )
 
 $targets = foreach ($relativeTarget in $relativeTargets) {

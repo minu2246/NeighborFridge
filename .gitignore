@@ -21,6 +21,7 @@ apps/api/public/mobile/
 /storage/uploads/
 /storage/cache/
 /storage/db/
+/storage/runtime/
 *.part
 *.tmp
 
