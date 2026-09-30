@@ -15,6 +15,12 @@
 
 프로젝트 파일의 저장·다운로드·정리 원칙은 [FILE_MANAGEMENT.md](FILE_MANAGEMENT.md)를 참고하세요.
 
+로컬 용량과 잔여물은 다음 명령으로 언제든 점검할 수 있습니다. 이 명령은 파일을 삭제하지 않습니다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\audit-storage.ps1
+```
+
 ## 기본 기술 방향
 
 - Mobile: React Native

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "project": "NeighborFridge",
+  "localResourcesOutsideProject": [],
+  "remoteResources": [
+    {
+      "type": "github-repository",
+      "name": "minu2246/NeighborFridge",
+      "url": "https://github.com/minu2246/NeighborFridge",
+      "deletionRequiresSeparateApproval": true
+    }
+  ],
+  "sharedGlobalTools": [
+    {
+      "name": "Git",
+      "projectOwned": false,
+      "removeWhenProjectEnds": false
+    }
+  ]
+}
