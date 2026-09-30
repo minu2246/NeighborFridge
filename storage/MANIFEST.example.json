@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "path": "storage/downloads/example-file",
+      "source": "https://example.com/source",
+      "version": "replace-me",
+      "sha256": "replace-me",
+      "downloadedAt": "YYYY-MM-DDTHH:mm:ssZ"
+    }
+  ]
+}
