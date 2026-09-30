@@ -1,8 +1,16 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreatePostDto } from './dto/create-post.dto';
 import { FindNearbyPostsDto } from './dto/find-nearby-posts.dto';
 import { PostRecord } from './post.types';
 import { PostsRepository } from './posts.repository';
+import { UpdatePostDto } from './dto/update-post.dto';
+import { UpdatePostStatusDto } from './dto/update-post-status.dto';
 
 @Injectable()
 export class PostsService {
@@ -23,5 +31,68 @@ export class PostsService {
 
   findNearby(input: FindNearbyPostsDto): Promise<PostRecord[]> {
     return this.postsRepository.findNearby(input);
+  }
+
+  async getById(id: string): Promise<PostRecord> {
+    const post = await this.postsRepository.findById(id);
+    if (!post) throw new NotFoundException('게시물을 찾을 수 없습니다.');
+    return post;
+  }
+
+  async update(userId: string, id: string, input: UpdatePostDto): Promise<PostRecord> {
+    const post = await this.getOwnedPost(userId, id);
+    if (!['ACTIVE', 'RESERVED'].includes(post.status)) {
+      throw new ConflictException('현재 상태에서는 게시물을 수정할 수 없습니다.');
+    }
+    if ((input.latitude === undefined) !== (input.longitude === undefined)) {
+      throw new BadRequestException('위도와 경도는 함께 입력해야 합니다.');
+    }
+    if (input.expiryDate && input.expiryDate < this.todayInSeoul()) {
+      throw new BadRequestException('이미 지난 소비기한으로 변경할 수 없습니다.');
+    }
+    const updated = await this.postsRepository.update(id, input);
+    if (!updated) throw new ConflictException('게시물 상태가 변경되어 수정할 수 없습니다.');
+    return updated;
+  }
+
+  async updateStatus(
+    userId: string,
+    id: string,
+    input: UpdatePostStatusDto,
+  ): Promise<PostRecord> {
+    const post = await this.getOwnedPost(userId, id);
+    const allowedTransitions: Record<string, string[]> = {
+      ACTIVE: ['RESERVED', 'COMPLETED'],
+      RESERVED: ['ACTIVE', 'COMPLETED'],
+      COMPLETED: [],
+      EXPIRED: [],
+      DELETED: [],
+    };
+    if (post.status === input.status) return post;
+    if (!allowedTransitions[post.status].includes(input.status)) {
+      throw new ConflictException(`${post.status} 상태에서 ${input.status} 상태로 변경할 수 없습니다.`);
+    }
+    const updated = await this.postsRepository.updateStatus(id, input.status);
+    if (!updated) throw new ConflictException('게시물 상태가 변경되어 처리할 수 없습니다.');
+    return updated;
+  }
+
+  async delete(userId: string, id: string): Promise<void> {
+    await this.getOwnedPost(userId, id);
+    if (!(await this.postsRepository.softDelete(id))) {
+      throw new NotFoundException('게시물을 찾을 수 없습니다.');
+    }
+  }
+
+  private async getOwnedPost(userId: string, id: string): Promise<PostRecord> {
+    const post = await this.getById(id);
+    if (post.userId !== userId) throw new ForbiddenException('작성자만 변경할 수 있습니다.');
+    return post;
+  }
+
+  private todayInSeoul(): string {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date());
   }
 }

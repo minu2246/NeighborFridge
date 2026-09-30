@@ -3,7 +3,8 @@ import { Pool } from 'pg';
 import { DATABASE_POOL } from '../../database/database.module';
 import { CreatePostDto } from './dto/create-post.dto';
 import { FindNearbyPostsDto } from './dto/find-nearby-posts.dto';
-import { PostRecord } from './post.types';
+import { MutablePostStatus, PostRecord } from './post.types';
+import { UpdatePostDto } from './dto/update-post.dto';
 
 type DbPostRow = {
   id: string;
@@ -14,7 +15,7 @@ type DbPostRow = {
   image_urls: string[];
   expiry_date: string;
   trade_type: PostRecord['tradeType'];
-  status: string;
+  status: PostRecord['status'];
   place_name: string | null;
   distance_km?: string;
   d_day?: number;
@@ -75,6 +76,75 @@ export class PostsRepository {
       [input.longitude, input.latitude, input.radiusKm, input.limit, input.offset],
     );
     return result.rows.map((row) => this.mapRow(row));
+  }
+
+  async findById(id: string): Promise<PostRecord | null> {
+    const result = await this.pool.query<DbPostRow>(
+      `SELECT id, user_id, title, description, item_name, image_urls,
+         expiry_date::text, trade_type, status, place_name, created_at
+       FROM posts
+       WHERE id = $1 AND status <> 'DELETED'
+       LIMIT 1`,
+      [id],
+    );
+    return result.rows[0] ? this.mapRow(result.rows[0]) : null;
+  }
+
+  async update(id: string, input: UpdatePostDto): Promise<PostRecord | null> {
+    const result = await this.pool.query<DbPostRow>(
+      `UPDATE posts SET
+         title = COALESCE($2, title),
+         description = COALESCE($3, description),
+         item_name = COALESCE($4, item_name),
+         image_urls = COALESCE($5::jsonb, image_urls),
+         expiry_date = COALESCE($6::date, expiry_date),
+         trade_type = COALESCE($7::trade_type, trade_type),
+         location = CASE
+           WHEN $8::double precision IS NOT NULL AND $9::double precision IS NOT NULL
+           THEN ST_SetSRID(ST_MakePoint($9, $8), 4326)::geography
+           ELSE location
+         END,
+         place_name = COALESCE($10, place_name),
+         updated_at = NOW()
+       WHERE id = $1 AND status IN ('ACTIVE', 'RESERVED')
+       RETURNING id, user_id, title, description, item_name, image_urls,
+         expiry_date::text, trade_type, status, place_name, created_at`,
+      [
+        id,
+        input.title ?? null,
+        input.description ?? null,
+        input.itemName ?? null,
+        input.imageUrls === undefined ? null : JSON.stringify(input.imageUrls),
+        input.expiryDate ?? null,
+        input.tradeType ?? null,
+        input.latitude ?? null,
+        input.longitude ?? null,
+        input.placeName ?? null,
+      ],
+    );
+    return result.rows[0] ? this.mapRow(result.rows[0]) : null;
+  }
+
+  async updateStatus(id: string, status: MutablePostStatus): Promise<PostRecord | null> {
+    const result = await this.pool.query<DbPostRow>(
+      `UPDATE posts
+       SET status = $2::post_status, updated_at = NOW()
+       WHERE id = $1 AND status NOT IN ('EXPIRED', 'DELETED')
+       RETURNING id, user_id, title, description, item_name, image_urls,
+         expiry_date::text, trade_type, status, place_name, created_at`,
+      [id, status],
+    );
+    return result.rows[0] ? this.mapRow(result.rows[0]) : null;
+  }
+
+  async softDelete(id: string): Promise<boolean> {
+    const result = await this.pool.query(
+      `UPDATE posts
+       SET status = 'DELETED', deleted_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND status <> 'DELETED'`,
+      [id],
+    );
+    return (result.rowCount ?? 0) > 0;
   }
 
   async expirePastDue(): Promise<string[]> {
