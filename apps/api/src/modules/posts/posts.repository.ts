@@ -25,7 +25,7 @@ type DbPostRow = {
 export class PostsRepository {
   constructor(@Inject(DATABASE_POOL) private readonly pool: Pool) {}
 
-  async create(input: CreatePostDto): Promise<PostRecord> {
+  async create(userId: string, input: CreatePostDto): Promise<PostRecord> {
     const result = await this.pool.query<DbPostRow>(
       `INSERT INTO posts (
         user_id, title, description, item_name, image_urls,
@@ -37,7 +37,7 @@ export class PostsRepository {
       RETURNING id, user_id, title, description, item_name, image_urls,
         expiry_date::text, trade_type, status, place_name, created_at`,
       [
-        input.userId,
+        userId,
         input.title,
         input.description ?? null,
         input.itemName,

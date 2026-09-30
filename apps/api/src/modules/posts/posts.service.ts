@@ -8,7 +8,7 @@ import { PostsRepository } from './posts.repository';
 export class PostsService {
   constructor(private readonly postsRepository: PostsRepository) {}
 
-  create(input: CreatePostDto): Promise<PostRecord> {
+  create(userId: string, input: CreatePostDto): Promise<PostRecord> {
     const today = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Seoul',
       year: 'numeric',
@@ -18,7 +18,7 @@ export class PostsService {
     if (input.expiryDate < today) {
       throw new BadRequestException('이미 지난 소비기한은 등록할 수 없습니다.');
     }
-    return this.postsRepository.create(input);
+    return this.postsRepository.create(userId, input);
   }
 
   findNearby(input: FindNearbyPostsDto): Promise<PostRecord[]> {

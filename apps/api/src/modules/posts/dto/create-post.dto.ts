@@ -9,15 +9,11 @@ import {
   IsOptional,
   IsString,
   IsUrl,
-  IsUUID,
   MaxLength,
 } from 'class-validator';
 import { TRADE_TYPES, TradeType } from '../post.types';
 
 export class CreatePostDto {
-  @IsUUID()
-  userId!: string;
-
   @IsString()
   @MaxLength(120)
   title!: string;

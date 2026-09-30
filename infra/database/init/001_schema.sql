@@ -14,12 +14,19 @@ END $$;
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash TEXT,
+  auth_provider VARCHAR(30) NOT NULL DEFAULT 'EMAIL',
+  auth_provider_user_id VARCHAR(255),
   nickname VARCHAR(50) NOT NULL,
   profile_image TEXT,
   location GEOGRAPHY(POINT, 4326),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_auth_provider_identity
+  ON users (auth_provider, auth_provider_user_id)
+  WHERE auth_provider_user_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -15,7 +15,7 @@ describe('PostsService', () => {
 
   it('rejects an already expired post before querying the database', async () => {
     const input = { expiryDate: '2000-01-01' } as CreatePostDto;
-    expect(() => service.create(input)).toThrow(BadRequestException);
+    expect(() => service.create('user-1', input)).toThrow(BadRequestException);
     expect(repository.create).not.toHaveBeenCalled();
   });
 

@@ -1,4 +1,7 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AuthenticatedUser } from '../auth/jwt.types';
 import { CreatePostDto } from './dto/create-post.dto';
 import { FindNearbyPostsDto } from './dto/find-nearby-posts.dto';
 import { PostRecord } from './post.types';
@@ -9,8 +12,12 @@ export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
   @Post()
-  create(@Body() input: CreatePostDto): Promise<PostRecord> {
-    return this.postsService.create(input);
+  @UseGuards(JwtAuthGuard)
+  create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() input: CreatePostDto,
+  ): Promise<PostRecord> {
+    return this.postsService.create(user.id, input);
   }
 
   @Get('nearby')
