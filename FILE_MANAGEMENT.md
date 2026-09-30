@@ -47,3 +47,7 @@
 11. GitHub 저장소 및 클라우드 자원 삭제는 별도 승인 후 진행합니다.
 
 로컬 폴더 삭제만으로 GitHub 저장소, 데이터베이스, S3, Firebase 데이터가 삭제되지는 않습니다.
+
+## 인증정보 위치
+
+GitHub 인증정보는 저장소 파일에 저장하지 않고 Windows 자격 증명 관리자에 보관합니다. Codex 제한 환경에서 push 인증이 되지 않을 때는 저장소 루트의 `SETUP_GIT_AUTH.ps1`을 일반 Windows PowerShell에서 한 번 실행합니다.
