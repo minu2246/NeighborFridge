@@ -38,6 +38,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\audit-storage.ps1
 npm install
 docker compose up -d
 npm run start:api
+npm run start:web
 ```
 
 Docker가 없는 환경에서도 `npm test`와 `npm run build`로 API 로직을 검증할 수 있습니다. npm 다운로드 캐시는 프로젝트 내부 `storage/cache/npm`에 저장됩니다.
+
+모바일 앱은 Expo 기반이며 `npm run start:web`으로 브라우저에서 동일한 화면을 확인할 수 있습니다.

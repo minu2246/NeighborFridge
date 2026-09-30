@@ -21,6 +21,7 @@ $relativeTargets = @(
     'dist',
     'build',
     'coverage',
+    'apps\api\public\mobile',
     '.expo',
     'logs',
     'storage\downloads',

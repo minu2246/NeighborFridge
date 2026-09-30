@@ -3,12 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "apps/api"
+    "apps/api",
+    "apps/mobile"
   ],
   "scripts": {
     "build": "npm run build --workspace @neighbor-fridge/api",
     "test": "npm run test --workspace @neighbor-fridge/api",
-    "start:api": "npm run start:dev --workspace @neighbor-fridge/api"
+    "start:api": "npm run start:dev --workspace @neighbor-fridge/api",
+    "start:mobile": "npm run start --workspace @neighbor-fridge/mobile",
+    "start:web": "npm run web --workspace @neighbor-fridge/mobile"
   },
   "engines": {
     "node": ">=22"

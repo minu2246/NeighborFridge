@@ -11,6 +11,8 @@ dist/
 build/
 coverage/
 .expo/
+.expo-shared/
+apps/api/public/mobile/
 .next/
 *.tsbuildinfo
 
