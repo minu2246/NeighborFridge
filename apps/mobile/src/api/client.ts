@@ -38,3 +38,5 @@ export function register(email: string, nickname: string, password: string): Pro
 
 export function listLocalPosts<T>(): Promise<T[]> { return request('/local/posts', { method: 'GET' }); }
 export function createLocalPost<T>(post: Omit<T, 'id'>): Promise<T> { return request('/local/posts', { method: 'POST', body: JSON.stringify(post) }); }
+export function getNeighborhood<T>(): Promise<T | null> { return request('/local/neighborhood', { method: 'GET' }); }
+export function saveNeighborhood<T>(value: Omit<T, 'verifiedAt'>): Promise<T> { return request('/local/neighborhood', { method: 'PUT', body: JSON.stringify(value) }); }

@@ -1,12 +1,13 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PostCard } from '../components/PostCard';
-import { FoodPost } from '../types';
+import { FoodPost, Neighborhood } from '../types';
 
-export function HomeScreen({ posts, onSelectPost }: { posts: FoodPost[]; onSelectPost: (post: FoodPost) => void }) {
+export function HomeScreen({ posts, neighborhood, onNeighborhoodChange, onSelectPost }: { posts: FoodPost[]; neighborhood: Neighborhood | null; onNeighborhoodChange: (value: Neighborhood) => Promise<void>; onSelectPost: (post: FoodPost) => void }) {
+  const visiblePosts = posts.filter((post) => Number.parseFloat(post.distance) <= (neighborhood?.radiusKm ?? 3));
   return (
     <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <View><Text style={styles.locationLabel}>우리 동네</Text><Text style={styles.location}>서울 중구 ⌄</Text></View>
+        <View><Text style={styles.locationLabel}>우리 동네 · 인증 완료</Text><Text style={styles.location}>{neighborhood?.name ?? '동네 확인 중'} ✓</Text></View>
         <View style={styles.avatar}><Text>🙂</Text></View>
       </View>
       <View style={styles.hero}>
@@ -14,8 +15,10 @@ export function HomeScreen({ posts, onSelectPost }: { posts: FoodPost[]; onSelec
         <Text style={styles.heroEmoji}>🌱</Text>
       </View>
       <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>가까운 이웃 냉장고</Text><Text style={styles.filter}>거리순 ⌄</Text></View>
+      <View style={styles.radiusRow}><Text style={styles.radiusLabel}>검색 반경</Text>{([1, 3, 5] as const).map((radius) => <Pressable key={radius} onPress={() => neighborhood && void onNeighborhoodChange({ ...neighborhood, radiusKm: radius })}><Text style={[styles.radius, neighborhood?.radiusKm === radius && styles.radiusActive]}>{radius}km</Text></Pressable>)}</View>
       <View style={styles.chips}><Text style={[styles.chip, styles.chipActive]}>전체</Text><Text style={styles.chip}>나눔</Text><Text style={styles.chip}>교환</Text><Text style={styles.chip}>한끼</Text></View>
-      {posts.map((post) => <PostCard key={post.id} post={post} onPress={() => onSelectPost(post)} />)}
+      {visiblePosts.map((post) => <PostCard key={post.id} post={post} onPress={() => onSelectPost(post)} />)}
+      {visiblePosts.length === 0 ? <Text style={styles.empty}>이 반경에는 아직 등록된 식재료가 없어요.</Text> : null}
     </ScrollView>
   );
 }
@@ -30,4 +33,5 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, sectionTitle: { color: '#173C2D', fontSize: 20, fontWeight: '900' }, filter: { color: '#63746B', fontSize: 13 },
   chips: { flexDirection: 'row', marginTop: 14, marginBottom: 16 }, chip: { marginRight: 8, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 18, color: '#5D6D64', backgroundColor: '#EDF2EF', overflow: 'hidden', fontSize: 13, fontWeight: '700' },
   chipActive: { color: '#FFF', backgroundColor: '#19734B' },
+  radiusRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14 }, radiusLabel: { color: '#7B8B82', fontSize: 12, marginRight: 8 }, radius: { color: '#617269', backgroundColor: '#EDF2EF', paddingHorizontal: 11, paddingVertical: 6, borderRadius: 14, marginRight: 6, overflow: 'hidden', fontSize: 12, fontWeight: '800' }, radiusActive: { color: '#FFF', backgroundColor: '#19734B' }, empty: { textAlign: 'center', color: '#829087', paddingVertical: 35 },
 });

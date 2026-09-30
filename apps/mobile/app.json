@@ -5,14 +5,17 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "plugins": [["expo-location", { "locationWhenInUsePermission": "내 주변의 식재료를 찾기 위해 현재 위치를 사용합니다." }]],
     "web": {
       "bundler": "metro"
     },
     "android": {
-      "package": "com.neighborfridge.app"
+      "package": "com.neighborfridge.app",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "ios": {
-      "bundleIdentifier": "com.neighborfridge.app"
+      "bundleIdentifier": "com.neighborfridge.app",
+      "infoPlist": { "NSLocationWhenInUseUsageDescription": "내 주변의 식재료를 찾기 위해 현재 위치를 사용합니다." }
     }
   }
 }

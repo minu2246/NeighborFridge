@@ -20,3 +20,11 @@ export interface NewPostInput {
   expiryDate: string;
   place: string;
 }
+
+export interface Neighborhood {
+  name: string;
+  latitude: number;
+  longitude: number;
+  radiusKm: 1 | 3 | 5;
+  verifiedAt?: string;
+}

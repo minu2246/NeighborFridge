@@ -11,6 +11,10 @@ export interface LocalPost {
   distance: string; dDay: string; place: string; color: string;
 }
 
+export interface LocalNeighborhood {
+  name: string; latitude: number; longitude: number; radiusKm: number; verifiedAt: string;
+}
+
 @Injectable()
 export class LocalStoreService implements OnModuleDestroy {
   private readonly db: DatabaseSync | null;
@@ -35,6 +39,9 @@ export class LocalStoreService implements OnModuleDestroy {
       CREATE TABLE IF NOT EXISTS local_messages (
         id TEXT PRIMARY KEY, room_id TEXT NOT NULL, sender TEXT NOT NULL,
         message TEXT NOT NULL, sent_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS local_settings (
+        key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL
       );
     `);
   }
@@ -79,6 +86,19 @@ export class LocalStoreService implements OnModuleDestroy {
   createMessage(roomId: string, sender: string, message: string) {
     const value = { id: randomUUID(), roomId, sender, message: message.trim(), sentAt: new Date().toISOString() };
     this.requireDb().prepare('INSERT INTO local_messages (id,room_id,sender,message,sent_at) VALUES (?,?,?,?,?)').run(value.id, value.roomId, value.sender, value.message, value.sentAt);
+    return value;
+  }
+
+  getNeighborhood(): LocalNeighborhood | null {
+    const row = this.requireDb().prepare("SELECT value FROM local_settings WHERE key = 'neighborhood'").get() as { value: string } | undefined;
+    return row ? JSON.parse(row.value) as LocalNeighborhood : null;
+  }
+
+  saveNeighborhood(input: Omit<LocalNeighborhood, 'verifiedAt'>): LocalNeighborhood {
+    const value = { ...input, verifiedAt: new Date().toISOString() };
+    this.requireDb().prepare(`INSERT INTO local_settings (key,value,updated_at) VALUES ('neighborhood',?,?)
+      ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at`)
+      .run(JSON.stringify(value), value.verifiedAt);
     return value;
   }
 
