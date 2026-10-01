@@ -2,14 +2,14 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException, 
 import { ConfigService } from '@nestjs/config';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname, resolve } from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { PasswordService } from '../auth/password.service';
 
 export interface LocalPost {
   id: string; emoji: string; name: string; title: string; type: string;
   distance: string; dDay: string; place: string; color: string;
-  expiryDate: string; status: 'ACTIVE' | 'EXPIRED';
+  expiryDate: string; status: 'ACTIVE' | 'EXPIRED'; imageUrl?: string;
 }
 
 export interface LocalNeighborhood {
@@ -20,8 +20,10 @@ export interface LocalNeighborhood {
 export class LocalStoreService implements OnModuleDestroy {
   private readonly db: DatabaseSync | null;
   private readonly expiryTimer: NodeJS.Timeout | null;
+  private readonly uploadPath: string;
 
   constructor(config: ConfigService, private readonly passwords: PasswordService) {
+    this.uploadPath = resolve(config.get<string>('LOCAL_UPLOAD_PATH', 'storage/uploads'));
     if (config.get<string>('LOCAL_STORE_ENABLED', 'false') !== 'true') { this.db = null; this.expiryTimer = null; return; }
     const path = resolve(config.get<string>('LOCAL_DB_PATH', 'storage/db/neighbor-fridge-local.sqlite'));
     mkdirSync(dirname(path), { recursive: true });
@@ -49,6 +51,7 @@ export class LocalStoreService implements OnModuleDestroy {
     const postColumns = this.db.prepare('PRAGMA table_info(local_posts)').all() as { name: string }[];
     if (!postColumns.some((column) => column.name === 'expiry_date')) this.db.exec("ALTER TABLE local_posts ADD COLUMN expiry_date TEXT NOT NULL DEFAULT '2099-12-31'");
     if (!postColumns.some((column) => column.name === 'status')) this.db.exec("ALTER TABLE local_posts ADD COLUMN status TEXT NOT NULL DEFAULT 'ACTIVE'");
+    if (!postColumns.some((column) => column.name === 'image_url')) this.db.exec('ALTER TABLE local_posts ADD COLUMN image_url TEXT');
     this.db.exec("UPDATE local_posts SET expiry_date = d_day WHERE expiry_date = '2099-12-31' AND d_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'");
     this.expirePosts();
     this.expiryTimer = setInterval(() => this.expirePosts(), 60_000);
@@ -79,6 +82,7 @@ export class LocalStoreService implements OnModuleDestroy {
       id: row.id, emoji: row.emoji, name: row.name, title: row.title, type: row.type,
       distance: row.distance, dDay: row.expiry_date === '2099-12-31' ? row.d_day : this.formatDDay(row.expiry_date), place: row.place, color: row.color,
       expiryDate: row.expiry_date, status: row.status as 'ACTIVE' | 'EXPIRED',
+      imageUrl: row.image_url || undefined,
     }));
   }
 
@@ -86,8 +90,8 @@ export class LocalStoreService implements OnModuleDestroy {
     if (input.expiryDate < this.todayInSeoul()) throw new BadRequestException('이미 지난 소비기한은 등록할 수 없습니다.');
     const post = { id: randomUUID(), ...input };
     this.requireDb().prepare(`INSERT INTO local_posts
-      (id,emoji,name,title,type,distance,d_day,place,color,created_at,expiry_date,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
-      .run(post.id, post.emoji, post.name, post.title, post.type, post.distance, this.formatDDay(post.expiryDate), post.place, post.color, new Date().toISOString(), post.expiryDate, 'ACTIVE');
+      (id,emoji,name,title,type,distance,d_day,place,color,created_at,expiry_date,status,image_url) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(post.id, post.emoji, post.name, post.title, post.type, post.distance, this.formatDDay(post.expiryDate), post.place, post.color, new Date().toISOString(), post.expiryDate, 'ACTIVE', post.imageUrl ?? null);
     post.dDay = this.formatDDay(post.expiryDate);
     return post;
   }
@@ -100,6 +104,18 @@ export class LocalStoreService implements OnModuleDestroy {
     const value = { id: randomUUID(), roomId, sender, message: message.trim(), sentAt: new Date().toISOString() };
     this.requireDb().prepare('INSERT INTO local_messages (id,room_id,sender,message,sent_at) VALUES (?,?,?,?,?)').run(value.id, value.roomId, value.sender, value.message, value.sentAt);
     return value;
+  }
+
+  saveImage(base64: string, mimeType: string): { imageUrl: string } {
+    const extensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+    const extension = extensions[mimeType];
+    if (!extension) throw new BadRequestException('지원하지 않는 이미지 형식입니다.');
+    const buffer = Buffer.from(base64, 'base64');
+    if (!buffer.length || buffer.length > 5 * 1024 * 1024) throw new BadRequestException('사진은 5MB 이하만 등록할 수 있습니다.');
+    mkdirSync(this.uploadPath, { recursive: true });
+    const filename = `${randomUUID()}.${extension}`;
+    writeFileSync(resolve(this.uploadPath, filename), buffer, { flag: 'wx' });
+    return { imageUrl: `/uploads/${filename}` };
   }
 
   getNeighborhood(): LocalNeighborhood | null {

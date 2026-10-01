@@ -1,11 +1,11 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FoodPost } from '../types';
 
 export function PostDetailScreen({ post, onBack, onChat }: { post: FoodPost; onBack: () => void; onChat: () => void }) {
   return <View style={styles.shell}>
     <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
       <Pressable onPress={onBack} style={styles.back}><Text style={styles.backText}>‹  목록으로</Text></Pressable>
-      <View style={[styles.photo, { backgroundColor: post.color }]}><Text style={styles.emoji}>{post.emoji}</Text><Text style={styles.dday}>{post.dDay}</Text></View>
+      <View style={[styles.photo, { backgroundColor: post.color }]}>{post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={{ width: '100%', height: '100%', borderRadius: 25 }}/> : <Text style={styles.emoji}>{post.emoji}</Text>}<Text style={styles.dday}>{post.dDay}</Text></View>
       <View style={styles.owner}><View style={styles.avatar}><Text>🙂</Text></View><View style={styles.ownerCopy}><Text style={styles.ownerName}>초록이웃</Text><Text style={styles.ownerMeta}>서울 중구 · 매너온도 48.5°</Text></View><Text style={styles.distance}>{post.distance}</Text></View>
       <View style={styles.rule} />
       <View style={styles.titleRow}><Text style={styles.name}>{post.name}</Text><Text style={styles.type}>{post.type}</Text></View>

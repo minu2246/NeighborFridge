@@ -1,4 +1,5 @@
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api';
+const SERVER_URL = API_URL.replace(/\/api\/?$/, '');
 
 export interface AuthResponse {
   accessToken: string;
@@ -42,3 +43,7 @@ export function getNeighborhood<T>(): Promise<T | null> { return request('/local
 export function saveNeighborhood<T>(value: Omit<T, 'verifiedAt'>): Promise<T> { return request('/local/neighborhood', { method: 'PUT', body: JSON.stringify(value) }); }
 export function listLocalMessages<T>(roomId: string): Promise<T[]> { return request(`/local/rooms/${encodeURIComponent(roomId)}/messages`, { method: 'GET' }); }
 export function sendLocalMessage<T>(roomId: string, sender: string, message: string): Promise<T> { return request(`/local/rooms/${encodeURIComponent(roomId)}/messages`, { method: 'POST', body: JSON.stringify({ sender, message }) }); }
+export async function uploadLocalImage(base64: string, mimeType: string): Promise<string> {
+  const result = await request<{ imageUrl: string }>('/local/uploads', { method: 'POST', body: JSON.stringify({ base64, mimeType }) });
+  return `${SERVER_URL}${result.imageUrl}`;
+}

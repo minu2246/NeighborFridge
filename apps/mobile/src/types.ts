@@ -13,6 +13,7 @@ export interface FoodPost {
   color: string;
   expiryDate?: string;
   status?: 'ACTIVE' | 'EXPIRED';
+  imageUrl?: string;
 }
 
 export interface NewPostInput {
@@ -21,6 +22,8 @@ export interface NewPostInput {
   type: TradeType;
   expiryDate: string;
   place: string;
+  photoBase64?: string;
+  photoMimeType?: string;
 }
 
 export interface Neighborhood {

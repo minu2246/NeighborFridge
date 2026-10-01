@@ -1,10 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { FoodPost } from '../types';
 
 export function PostCard({ post, onPress }: { post: FoodPost; onPress?: () => void }) {
   return (
     <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressed]} onPress={onPress}>
-      <View style={[styles.image, { backgroundColor: post.color }]}><Text style={styles.emoji}>{post.emoji}</Text></View>
+      <View style={[styles.image, { backgroundColor: post.color }]}>{post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={{ width: '100%', height: '100%', borderRadius: 14 }}/> : <Text style={styles.emoji}>{post.emoji}</Text>}</View>
       <View style={styles.content}>
         <View style={styles.topline}>
           <Text style={styles.name}>{post.name}</Text>

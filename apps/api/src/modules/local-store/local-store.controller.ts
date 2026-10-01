@@ -1,11 +1,12 @@
 import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
-import { IsDateString, IsEmail, IsIn, IsLatitude, IsLongitude, IsNumber, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsBase64, IsDateString, IsEmail, IsIn, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { LocalPost, LocalStoreService } from './local-store.service';
 
 class LocalRegisterDto { @IsEmail() email!: string; @IsString() @MinLength(2) nickname!: string; @IsString() @MinLength(10) password!: string; }
 class LocalLoginDto { @IsEmail() email!: string; @IsString() password!: string; }
-class LocalPostDto { @IsString() emoji!: string; @IsString() name!: string; @IsString() title!: string; @IsString() type!: string; @IsString() distance!: string; @IsString() dDay!: string; @IsString() place!: string; @IsString() color!: string; @IsDateString() expiryDate!: string; @IsIn(['ACTIVE']) status!: 'ACTIVE'; }
+class LocalPostDto { @IsString() emoji!: string; @IsString() name!: string; @IsString() title!: string; @IsString() type!: string; @IsString() distance!: string; @IsString() dDay!: string; @IsString() place!: string; @IsString() color!: string; @IsDateString() expiryDate!: string; @IsIn(['ACTIVE']) status!: 'ACTIVE'; @IsOptional() @IsString() imageUrl?: string; }
 class LocalMessageDto { @IsString() sender!: string; @IsString() @MinLength(1) @MaxLength(2000) message!: string; }
+class LocalImageDto { @IsBase64() base64!: string; @IsIn(['image/jpeg', 'image/png', 'image/webp']) mimeType!: string; }
 class LocalNeighborhoodDto {
   @IsString() @MinLength(2) @MaxLength(80) name!: string;
   @IsLatitude() latitude!: number;
@@ -20,6 +21,7 @@ export class LocalStoreController {
   @Post('auth/login') login(@Body() input: LocalLoginDto) { return this.store.login(input.email, input.password); }
   @Get('posts') listPosts(): LocalPost[] { return this.store.listPosts(); }
   @Post('posts') createPost(@Body() input: LocalPostDto): LocalPost { return this.store.createPost(input); }
+  @Post('uploads') saveImage(@Body() input: LocalImageDto) { return this.store.saveImage(input.base64, input.mimeType); }
   @Get('rooms/:roomId/messages') listMessages(@Param('roomId') roomId: string) { return this.store.listMessages(roomId); }
   @Post('rooms/:roomId/messages') createMessage(@Param('roomId') roomId: string, @Body() input: LocalMessageDto) { return this.store.createMessage(roomId, input.sender, input.message); }
   @Get('neighborhood') getNeighborhood() { return this.store.getNeighborhood(); }

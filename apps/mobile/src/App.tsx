@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { BackHandler, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { createLocalPost, getHealth, getNeighborhood, listLocalPosts, login, register, saveNeighborhood } from './api/client';
+import { createLocalPost, getHealth, getNeighborhood, listLocalPosts, login, register, saveNeighborhood, uploadLocalImage } from './api/client';
 import { demoPosts } from './data/demo';
 import { AddScreen } from './screens/AddScreen';
 import { ChatScreen } from './screens/ChatScreen';
@@ -48,7 +48,8 @@ export default function App() {
   async function handleLogin(email: string, password: string) { await login(email, password); setAuthenticated(true); }
   async function handleRegister(email: string, nickname: string, password: string) { await register(email, nickname, password); setAuthenticated(true); }
   async function addPost(input: NewPostInput) {
-    const draft = { emoji: '🥕', name: input.name, title: input.title, type: input.type, distance: '0km', dDay: input.expiryDate, place: input.place, color: '#E6F4DE', expiryDate: input.expiryDate, status: 'ACTIVE' as const };
+    const imageUrl = input.photoBase64 && input.photoMimeType ? await uploadLocalImage(input.photoBase64, input.photoMimeType) : undefined;
+    const draft = { emoji: '🥕', name: input.name, title: input.title, type: input.type, distance: '0km', dDay: input.expiryDate, place: input.place, color: '#E6F4DE', expiryDate: input.expiryDate, status: 'ACTIVE' as const, imageUrl };
     const saved = await createLocalPost<FoodPost>(draft).catch(() => ({ id: String(Date.now()), ...draft }));
     setPosts((current) => [saved, ...current]);
     setTab('home');
