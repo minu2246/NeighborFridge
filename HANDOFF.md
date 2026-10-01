@@ -17,8 +17,8 @@
 ## 2. Git 상태 (2026-10-01 기준)
 - 브랜치: `main` (`origin/main`과 동기화), stash 없음
 - 원격: `https://github.com/minu2246/NeighborFridge.git`
-- 커밋 수: 23, 최신 `5b198a7 fix: persist post states and open my posts`
-- 미커밋 변경: `HANDOFF.md`, `AGENTS.md` 신규 파일(아직 커밋하지 않음)
+- 커밋 수: 24, 최신 `217227e Add AI handoff and agent instructions` (`HANDOFF.md`, `AGENTS.md` 커밋됨)
+- 미커밋 변경: `CLAUDE.md` 신규 파일, `HANDOFF.md` Git 상태 갱신(아직 커밋하지 않음)
 - 최근 흐름: Expo 모바일 MVP → 로컬 SQLite 저장 → 휴대폰 미리보기 → 사진 업로드 → 만료 처리 → 필터·정렬 → 소비기한 달력·거래 상태 → 상태 영속화·내 게시물
 
 ## 3. 프로젝트 구성
