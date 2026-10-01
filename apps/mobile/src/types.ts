@@ -11,6 +11,8 @@ export interface FoodPost {
   dDay: string;
   place: string;
   color: string;
+  expiryDate?: string;
+  status?: 'ACTIVE' | 'EXPIRED';
 }
 
 export interface NewPostInput {

@@ -1,10 +1,10 @@
 import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
-import { IsEmail, IsIn, IsLatitude, IsLongitude, IsNumber, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsDateString, IsEmail, IsIn, IsLatitude, IsLongitude, IsNumber, IsString, MaxLength, MinLength } from 'class-validator';
 import { LocalPost, LocalStoreService } from './local-store.service';
 
 class LocalRegisterDto { @IsEmail() email!: string; @IsString() @MinLength(2) nickname!: string; @IsString() @MinLength(10) password!: string; }
 class LocalLoginDto { @IsEmail() email!: string; @IsString() password!: string; }
-class LocalPostDto { @IsString() emoji!: string; @IsString() name!: string; @IsString() title!: string; @IsString() type!: string; @IsString() distance!: string; @IsString() dDay!: string; @IsString() place!: string; @IsString() color!: string; }
+class LocalPostDto { @IsString() emoji!: string; @IsString() name!: string; @IsString() title!: string; @IsString() type!: string; @IsString() distance!: string; @IsString() dDay!: string; @IsString() place!: string; @IsString() color!: string; @IsDateString() expiryDate!: string; @IsIn(['ACTIVE']) status!: 'ACTIVE'; }
 class LocalMessageDto { @IsString() sender!: string; @IsString() @MinLength(1) @MaxLength(2000) message!: string; }
 class LocalNeighborhoodDto {
   @IsString() @MinLength(2) @MaxLength(80) name!: string;

@@ -48,7 +48,7 @@ export default function App() {
   async function handleLogin(email: string, password: string) { await login(email, password); setAuthenticated(true); }
   async function handleRegister(email: string, nickname: string, password: string) { await register(email, nickname, password); setAuthenticated(true); }
   async function addPost(input: NewPostInput) {
-    const draft = { emoji: '🥕', name: input.name, title: input.title, type: input.type, distance: '0km', dDay: input.expiryDate, place: input.place, color: '#E6F4DE' };
+    const draft = { emoji: '🥕', name: input.name, title: input.title, type: input.type, distance: '0km', dDay: input.expiryDate, place: input.place, color: '#E6F4DE', expiryDate: input.expiryDate, status: 'ACTIVE' as const };
     const saved = await createLocalPost<FoodPost>(draft).catch(() => ({ id: String(Date.now()), ...draft }));
     setPosts((current) => [saved, ...current]);
     setTab('home');

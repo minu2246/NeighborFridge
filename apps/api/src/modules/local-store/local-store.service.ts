@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException, OnModuleDestroy, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, OnModuleDestroy, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseSync } from 'node:sqlite';
 import { dirname, resolve } from 'node:path';
@@ -9,6 +9,7 @@ import { PasswordService } from '../auth/password.service';
 export interface LocalPost {
   id: string; emoji: string; name: string; title: string; type: string;
   distance: string; dDay: string; place: string; color: string;
+  expiryDate: string; status: 'ACTIVE' | 'EXPIRED';
 }
 
 export interface LocalNeighborhood {
@@ -18,9 +19,10 @@ export interface LocalNeighborhood {
 @Injectable()
 export class LocalStoreService implements OnModuleDestroy {
   private readonly db: DatabaseSync | null;
+  private readonly expiryTimer: NodeJS.Timeout | null;
 
   constructor(config: ConfigService, private readonly passwords: PasswordService) {
-    if (config.get<string>('LOCAL_STORE_ENABLED', 'false') !== 'true') { this.db = null; return; }
+    if (config.get<string>('LOCAL_STORE_ENABLED', 'false') !== 'true') { this.db = null; this.expiryTimer = null; return; }
     const path = resolve(config.get<string>('LOCAL_DB_PATH', 'storage/db/neighbor-fridge-local.sqlite'));
     mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
@@ -44,6 +46,13 @@ export class LocalStoreService implements OnModuleDestroy {
         key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL
       );
     `);
+    const postColumns = this.db.prepare('PRAGMA table_info(local_posts)').all() as { name: string }[];
+    if (!postColumns.some((column) => column.name === 'expiry_date')) this.db.exec("ALTER TABLE local_posts ADD COLUMN expiry_date TEXT NOT NULL DEFAULT '2099-12-31'");
+    if (!postColumns.some((column) => column.name === 'status')) this.db.exec("ALTER TABLE local_posts ADD COLUMN status TEXT NOT NULL DEFAULT 'ACTIVE'");
+    this.db.exec("UPDATE local_posts SET expiry_date = d_day WHERE expiry_date = '2099-12-31' AND d_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'");
+    this.expirePosts();
+    this.expiryTimer = setInterval(() => this.expirePosts(), 60_000);
+    this.expiryTimer.unref();
   }
 
   isEnabled(): boolean { return this.db !== null; }
@@ -65,17 +74,21 @@ export class LocalStoreService implements OnModuleDestroy {
   }
 
   listPosts(): LocalPost[] {
-    return (this.requireDb().prepare('SELECT * FROM local_posts ORDER BY created_at DESC').all() as Record<string, string>[]).map((row) => ({
+    this.expirePosts();
+    return (this.requireDb().prepare("SELECT * FROM local_posts WHERE status = 'ACTIVE' ORDER BY created_at DESC").all() as Record<string, string>[]).map((row) => ({
       id: row.id, emoji: row.emoji, name: row.name, title: row.title, type: row.type,
-      distance: row.distance, dDay: row.d_day, place: row.place, color: row.color,
+      distance: row.distance, dDay: row.expiry_date === '2099-12-31' ? row.d_day : this.formatDDay(row.expiry_date), place: row.place, color: row.color,
+      expiryDate: row.expiry_date, status: row.status as 'ACTIVE' | 'EXPIRED',
     }));
   }
 
   createPost(input: Omit<LocalPost, 'id'>): LocalPost {
+    if (input.expiryDate < this.todayInSeoul()) throw new BadRequestException('이미 지난 소비기한은 등록할 수 없습니다.');
     const post = { id: randomUUID(), ...input };
     this.requireDb().prepare(`INSERT INTO local_posts
-      (id,emoji,name,title,type,distance,d_day,place,color,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)`)
-      .run(post.id, post.emoji, post.name, post.title, post.type, post.distance, post.dDay, post.place, post.color, new Date().toISOString());
+      (id,emoji,name,title,type,distance,d_day,place,color,created_at,expiry_date,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(post.id, post.emoji, post.name, post.title, post.type, post.distance, this.formatDDay(post.expiryDate), post.place, post.color, new Date().toISOString(), post.expiryDate, 'ACTIVE');
+    post.dDay = this.formatDDay(post.expiryDate);
     return post;
   }
 
@@ -102,6 +115,14 @@ export class LocalStoreService implements OnModuleDestroy {
     return value;
   }
 
-  onModuleDestroy(): void { this.db?.close(); }
+  onModuleDestroy(): void { if (this.expiryTimer) clearInterval(this.expiryTimer); this.db?.close(); }
+  private todayInSeoul(): string { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+  private expirePosts(): void { this.db?.prepare("UPDATE local_posts SET status = 'EXPIRED' WHERE status = 'ACTIVE' AND expiry_date < ?").run(this.todayInSeoul()); }
+  private formatDDay(expiryDate: string): string {
+    const today = new Date(`${this.todayInSeoul()}T00:00:00+09:00`);
+    const expiry = new Date(`${expiryDate}T00:00:00+09:00`);
+    const days = Math.round((expiry.getTime() - today.getTime()) / 86_400_000);
+    return days === 0 ? '오늘' : `D-${days}`;
+  }
   private requireDb(): DatabaseSync { if (!this.db) throw new NotFoundException(); return this.db; }
 }
