@@ -44,8 +44,9 @@ New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
 $apiAlreadyRunning = $false
 try { $apiAlreadyRunning = (Invoke-WebRequest -UseBasicParsing -Uri 'http://localhost:3000/api/health' -TimeoutSec 2).StatusCode -eq 200 } catch {}
 if (-not $apiAlreadyRunning) {
-    $oldLocalStore = $env:LOCAL_STORE_ENABLED; $oldLocalDb = $env:LOCAL_DB_PATH; $oldJwt = $env:JWT_SECRET; $oldScheduler = $env:ENABLE_EXPIRY_SCHEDULER
+    $oldDatabaseUrl = $env:DATABASE_URL; $oldLocalStore = $env:LOCAL_STORE_ENABLED; $oldLocalDb = $env:LOCAL_DB_PATH; $oldJwt = $env:JWT_SECRET; $oldScheduler = $env:ENABLE_EXPIRY_SCHEDULER
     try {
+        $env:DATABASE_URL = 'postgresql://neighbor_fridge:local-development-only@127.0.0.1:5432/neighbor_fridge'
         $env:LOCAL_STORE_ENABLED = 'true'
         $env:LOCAL_DB_PATH = 'storage/db/neighbor-fridge-local.sqlite'
         $env:JWT_SECRET = 'local-development-secret-change-before-production'
@@ -53,7 +54,7 @@ if (-not $apiAlreadyRunning) {
         $apiProcess = Start-Process -FilePath $node -ArgumentList $apiEntry -WorkingDirectory $projectRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $runtimeRoot 'api.log') -RedirectStandardError (Join-Path $runtimeRoot 'api-error.log') -PassThru
         Set-Content -LiteralPath (Join-Path $runtimeRoot 'api.pid') -Value $apiProcess.Id
     } finally {
-        $env:LOCAL_STORE_ENABLED = $oldLocalStore; $env:LOCAL_DB_PATH = $oldLocalDb; $env:JWT_SECRET = $oldJwt; $env:ENABLE_EXPIRY_SCHEDULER = $oldScheduler
+        $env:DATABASE_URL = $oldDatabaseUrl; $env:LOCAL_STORE_ENABLED = $oldLocalStore; $env:LOCAL_DB_PATH = $oldLocalDb; $env:JWT_SECRET = $oldJwt; $env:ENABLE_EXPIRY_SCHEDULER = $oldScheduler
     }
 }
 
