@@ -13,6 +13,7 @@ export function PostCard({ post, onPress }: { post: FoodPost; onPress?: () => vo
         <Text style={styles.title} numberOfLines={2}>{post.title}</Text>
         <View style={styles.metaRow}>
           <Text style={styles.badge}>{post.type}</Text>
+          {post.status === 'RESERVED' ? <Text style={styles.reserved}>예약중</Text> : null}
           <Text style={styles.meta}>{post.distance} · {post.place}</Text>
         </View>
       </View>
@@ -31,5 +32,6 @@ const styles = StyleSheet.create({
   title: { color: '#50655B', fontSize: 14, lineHeight: 20, marginTop: 5, minHeight: 40 },
   metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
   badge: { color: '#19734B', backgroundColor: '#E5F5EA', fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 9 },
+  reserved: { color: '#9A5B16', backgroundColor: '#FFF0D2', fontSize: 11, fontWeight: '800', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 9, marginLeft: 5 },
   meta: { color: '#829087', fontSize: 11, marginLeft: 7, flex: 1 },
 });

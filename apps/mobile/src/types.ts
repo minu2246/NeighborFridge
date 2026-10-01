@@ -12,8 +12,9 @@ export interface FoodPost {
   place: string;
   color: string;
   expiryDate?: string;
-  status?: 'ACTIVE' | 'EXPIRED';
+  status?: 'ACTIVE' | 'RESERVED' | 'COMPLETED' | 'EXPIRED';
   imageUrl?: string;
+  isMine?: boolean;
 }
 
 export interface NewPostInput {

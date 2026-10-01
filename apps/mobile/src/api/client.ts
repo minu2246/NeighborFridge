@@ -39,6 +39,7 @@ export function register(email: string, nickname: string, password: string): Pro
 
 export function listLocalPosts<T>(): Promise<T[]> { return request('/local/posts', { method: 'GET' }); }
 export function createLocalPost<T>(post: Omit<T, 'id'>): Promise<T> { return request('/local/posts', { method: 'POST', body: JSON.stringify(post) }); }
+export function updateLocalPostStatus<T>(postId: string, status: 'ACTIVE' | 'RESERVED' | 'COMPLETED'): Promise<T> { return request(`/local/posts/${encodeURIComponent(postId)}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }); }
 export function getNeighborhood<T>(): Promise<T | null> { return request('/local/neighborhood', { method: 'GET' }); }
 export function saveNeighborhood<T>(value: Omit<T, 'verifiedAt'>): Promise<T> { return request('/local/neighborhood', { method: 'PUT', body: JSON.stringify(value) }); }
 export function listLocalMessages<T>(roomId: string): Promise<T[]> { return request(`/local/rooms/${encodeURIComponent(roomId)}/messages`, { method: 'GET' }); }

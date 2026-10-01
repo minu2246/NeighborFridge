@@ -1,6 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { DatePickerModal } from '../components/DatePickerModal';
 import { NewPostInput, TradeType } from '../types';
 
 export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Promise<void> }) {
@@ -10,6 +11,8 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
   const [error, setError] = useState('');
   const [photo, setPhoto] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [warningOpen, setWarningOpen] = useState(false);
   async function pickPhoto(camera: boolean) {
     setError('');
     const permission = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -19,16 +22,20 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
     const asset = result.assets?.[0];
     if (!result.canceled && asset?.base64) setPhoto({ uri: asset.uri, base64: asset.base64, mimeType: asset.mimeType ?? 'image/jpeg' });
   }
-  async function submit() {
-    setError('');
-    if (!name.trim() || !title.trim() || !expiryDate || !place.trim()) { setError('모든 필수 항목을 입력해 주세요.'); return; }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(expiryDate) || Number.isNaN(new Date(`${expiryDate}T00:00:00`).getTime())) { setError('소비기한을 YYYY-MM-DD 형식으로 입력해 주세요.'); return; }
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    if (new Date(`${expiryDate}T00:00:00`) < today) { setError('이미 지난 소비기한은 등록할 수 없어요.'); return; }
+  async function savePost() {
     setSubmitting(true);
     try { await onSubmit({ name: name.trim(), title: title.trim(), type, expiryDate, place: place.trim(), photoBase64: photo?.base64, photoMimeType: photo?.mimeType }); setSaved(true); }
     catch (reason) { setError(reason instanceof Error ? reason.message : '사진 또는 게시물을 저장하지 못했어요. 다시 시도해 주세요.'); }
     finally { setSubmitting(false); }
+  }
+  function submit() {
+    setError('');
+    if (!name.trim() || !title.trim() || !expiryDate || !place.trim()) { setError('모든 필수 항목을 입력해 주세요.'); return; }
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const expiry = new Date(`${expiryDate}T00:00:00`);
+    const days = Math.round((expiry.getTime() - today.getTime()) / 86_400_000);
+    if (days <= 2) { setWarningOpen(true); return; }
+    void savePost();
   }
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>냉장고 열기</Text><Text style={styles.subtitle}>이웃에게 나눌 식재료를 알려주세요.</Text>
@@ -36,20 +43,27 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
     <Label text="식재료 이름" /><TextInput value={name} onChangeText={setName} style={styles.input} placeholder="예: 유정란 6구" placeholderTextColor="#9AA8A0" />
     <Label text="게시물 제목" /><TextInput value={title} onChangeText={setTitle} style={styles.input} placeholder="이웃에게 보여줄 한마디" placeholderTextColor="#9AA8A0" />
     <Label text="거래 방식" /><View style={styles.options}>{(['나눔', '교환', '한끼 나눔'] as TradeType[]).map((value) => <Pressable key={value} onPress={() => setType(value)}><Text style={[styles.option, type === value && styles.selected]}>{value}</Text></Pressable>)}</View>
-    <Label text="소비기한" /><TextInput value={expiryDate} onChangeText={setExpiryDate} style={styles.input} placeholder="2026-10-03" placeholderTextColor="#9AA8A0" />
+    <Label text="소비기한" /><Pressable onPress={() => setCalendarOpen(true)} style={styles.dateButton}><Text style={expiryDate ? styles.dateValue : styles.datePlaceholder}>{expiryDate ? formatDate(expiryDate) : '날짜 선택하기'}</Text><Text style={styles.calendarIcon}>▣</Text></Pressable>
     <Label text="거래 장소" /><TextInput value={place} onChangeText={setPlace} style={styles.input} placeholder="안전한 공공장소를 입력하세요" placeholderTextColor="#9AA8A0" />
     {error ? <Text style={styles.error}>{error}</Text> : null}
     {saved && <Text style={styles.saved}>✓ 홈 목록에 등록되었습니다.</Text>}
-    <Pressable onPress={() => void submit()} style={[styles.submit, submitting && styles.disabled]} disabled={submitting}>{submitting ? <ActivityIndicator color="#FFF"/> : <Text style={styles.submitText}>이웃 냉장고에 올리기</Text>}</Pressable>
+    <Pressable onPress={submit} style={[styles.submit, submitting && styles.disabled]} disabled={submitting}>{submitting ? <ActivityIndicator color="#FFF"/> : <Text style={styles.submitText}>이웃 냉장고에 올리기</Text>}</Pressable>
+    <DatePickerModal visible={calendarOpen} value={expiryDate} onClose={() => setCalendarOpen(false)} onSelect={(date) => { setExpiryDate(date); setCalendarOpen(false); setSaved(false); }} />
+    <Modal visible={warningOpen} transparent animationType="fade" onRequestClose={() => setWarningOpen(false)}><View style={styles.warningOverlay}><View style={styles.warningBox}><Text style={styles.warningEmoji}>⚠️</Text><Text style={styles.warningTitle}>소비기한이 얼마 남지 않았어요</Text><Text style={styles.warningText}>{expiryDate === todayKey() ? '소비기한이 오늘까지인 식품입니다.' : `소비기한이 ${daysUntil(expiryDate)}일 남은 식품입니다.`}{'\n'}식품 상태와 보관 상태를 다시 확인해 주세요.</Text><Pressable style={styles.warningConfirm} onPress={() => { setWarningOpen(false); void savePost(); }}><Text style={styles.warningConfirmText}>상태 확인 후 등록</Text></Pressable><Pressable style={styles.warningCancel} onPress={() => { setWarningOpen(false); setCalendarOpen(true); }}><Text style={styles.warningCancelText}>날짜 다시 선택</Text></Pressable></View></View></Modal>
   </ScrollView>;
 }
 function Label({ text }: { text: string }) { return <Text style={styles.label}>{text}</Text>; }
+function formatDate(value: string) { const [year, month, day] = value.split('-'); return `${year}년 ${Number(month)}월 ${Number(day)}일`; }
+function todayKey() { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
+function daysUntil(value: string) { const today = new Date(); today.setHours(0, 0, 0, 0); return Math.round((new Date(`${value}T00:00:00`).getTime() - today.getTime()) / 86_400_000); }
 const styles = StyleSheet.create({
   page: { padding: 22, paddingBottom: 110 }, title: { fontSize: 28, fontWeight: '900', color: '#173C2D', marginTop: 14 }, subtitle: { color: '#74867D', marginTop: 6, marginBottom: 22 },
   photo: { height: 190, borderRadius: 20, borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#9FC8AE', backgroundColor: '#F1F9F4', alignItems: 'center', justifyContent: 'center', marginBottom: 22, overflow: 'hidden' }, photoEmoji: { fontSize: 32 }, photoText: { fontWeight: '800', color: '#276B4D', marginTop: 7 }, photoActions: { flexDirection: 'row', marginTop: 12 }, photoButton: { color: '#FFF', backgroundColor: '#19734B', paddingHorizontal: 18, paddingVertical: 8, borderRadius: 12, marginHorizontal: 5, overflow: 'hidden', fontWeight: '800' }, preview: { width: '100%', height: '100%' }, remove: { position: 'absolute', right: 10, top: 10, backgroundColor: 'rgba(20,35,28,.75)', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10 }, removeText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
   label: { color: '#29483A', fontWeight: '800', fontSize: 14, marginTop: 15, marginBottom: 8 }, input: { height: 50, borderRadius: 13, borderWidth: 1, borderColor: '#DCE7E0', paddingHorizontal: 15, backgroundColor: '#FFF', color: '#173C2D' },
+  dateButton: { height: 50, borderRadius: 13, borderWidth: 1, borderColor: '#DCE7E0', paddingHorizontal: 15, backgroundColor: '#FFF', flexDirection: 'row', alignItems: 'center' }, dateValue: { flex: 1, color: '#173C2D', fontWeight: '800' }, datePlaceholder: { flex: 1, color: '#9AA8A0' }, calendarIcon: { color: '#19734B', fontSize: 17 },
   options: { flexDirection: 'row' }, option: { paddingVertical: 10, paddingHorizontal: 15, backgroundColor: '#EDF2EF', color: '#5D6D64', borderRadius: 12, overflow: 'hidden', marginRight: 8, fontWeight: '700' }, selected: { backgroundColor: '#19734B', color: '#FFF' },
   saved: { color: '#19734B', fontWeight: '800', marginTop: 18, textAlign: 'center' }, submit: { height: 54, borderRadius: 16, backgroundColor: '#19734B', alignItems: 'center', justifyContent: 'center', marginTop: 18 }, submitText: { color: '#FFF', fontWeight: '900', fontSize: 16 },
   error: { color: '#B54C3C', fontSize: 12, fontWeight: '700', marginTop: 12, textAlign: 'center' },
   disabled: { opacity: 0.55 },
+  warningOverlay: { flex: 1, backgroundColor: 'rgba(17,39,29,.5)', alignItems: 'center', justifyContent: 'center', padding: 24 }, warningBox: { width: '100%', maxWidth: 360, backgroundColor: '#FFF', borderRadius: 24, padding: 24, alignItems: 'center' }, warningEmoji: { fontSize: 36 }, warningTitle: { color: '#5C4018', fontSize: 19, fontWeight: '900', marginTop: 10 }, warningText: { color: '#735F3D', lineHeight: 22, textAlign: 'center', marginTop: 10, marginBottom: 20 }, warningConfirm: { width: '100%', height: 50, borderRadius: 14, backgroundColor: '#D4772B', alignItems: 'center', justifyContent: 'center' }, warningConfirmText: { color: '#FFF', fontWeight: '900' }, warningCancel: { paddingVertical: 14 }, warningCancelText: { color: '#66766E', fontWeight: '800' },
 });

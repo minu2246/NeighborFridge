@@ -9,7 +9,7 @@ import { PasswordService } from '../auth/password.service';
 export interface LocalPost {
   id: string; emoji: string; name: string; title: string; type: string;
   distance: string; dDay: string; place: string; color: string;
-  expiryDate: string; status: 'ACTIVE' | 'EXPIRED'; imageUrl?: string;
+  expiryDate: string; status: 'ACTIVE' | 'RESERVED' | 'COMPLETED' | 'EXPIRED'; imageUrl?: string; isMine: true;
 }
 
 export interface LocalNeighborhood {
@@ -78,22 +78,30 @@ export class LocalStoreService implements OnModuleDestroy {
 
   listPosts(): LocalPost[] {
     this.expirePosts();
-    return (this.requireDb().prepare("SELECT * FROM local_posts WHERE status = 'ACTIVE' ORDER BY created_at DESC").all() as Record<string, string>[]).map((row) => ({
+    return (this.requireDb().prepare("SELECT * FROM local_posts WHERE status IN ('ACTIVE','RESERVED') ORDER BY created_at DESC").all() as Record<string, string>[]).map((row) => ({
       id: row.id, emoji: row.emoji, name: row.name, title: row.title, type: row.type,
       distance: row.distance, dDay: row.expiry_date === '2099-12-31' ? row.d_day : this.formatDDay(row.expiry_date), place: row.place, color: row.color,
-      expiryDate: row.expiry_date, status: row.status as 'ACTIVE' | 'EXPIRED',
-      imageUrl: row.image_url || undefined,
+      expiryDate: row.expiry_date, status: row.status as LocalPost['status'],
+      imageUrl: row.image_url || undefined, isMine: true,
     }));
   }
 
-  createPost(input: Omit<LocalPost, 'id'>): LocalPost {
+  createPost(input: Omit<LocalPost, 'id' | 'isMine'>): LocalPost {
     if (input.expiryDate < this.todayInSeoul()) throw new BadRequestException('이미 지난 소비기한은 등록할 수 없습니다.');
-    const post = { id: randomUUID(), ...input };
+    const post: LocalPost = { id: randomUUID(), ...input, isMine: true };
     this.requireDb().prepare(`INSERT INTO local_posts
       (id,emoji,name,title,type,distance,d_day,place,color,created_at,expiry_date,status,image_url) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .run(post.id, post.emoji, post.name, post.title, post.type, post.distance, this.formatDDay(post.expiryDate), post.place, post.color, new Date().toISOString(), post.expiryDate, 'ACTIVE', post.imageUrl ?? null);
     post.dDay = this.formatDDay(post.expiryDate);
     return post;
+  }
+
+  updatePostStatus(id: string, status: 'ACTIVE' | 'RESERVED' | 'COMPLETED'): LocalPost {
+    const db = this.requireDb();
+    const result = db.prepare("UPDATE local_posts SET status = ? WHERE id = ? AND status IN ('ACTIVE','RESERVED')").run(status, id);
+    if (result.changes === 0) throw new NotFoundException('변경할 게시물을 찾지 못했습니다.');
+    const row = db.prepare('SELECT * FROM local_posts WHERE id = ?').get(id) as Record<string, string>;
+    return { id: row.id, emoji: row.emoji, name: row.name, title: row.title, type: row.type, distance: row.distance, dDay: this.formatDDay(row.expiry_date), place: row.place, color: row.color, expiryDate: row.expiry_date, status: row.status as LocalPost['status'], imageUrl: row.image_url || undefined, isMine: true };
   }
 
   listMessages(roomId: string) {
@@ -135,7 +143,7 @@ export class LocalStoreService implements OnModuleDestroy {
 
   onModuleDestroy(): void { if (this.expiryTimer) clearInterval(this.expiryTimer); this.db?.close(); }
   private todayInSeoul(): string { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
-  private expirePosts(): void { this.db?.prepare("UPDATE local_posts SET status = 'EXPIRED' WHERE status = 'ACTIVE' AND expiry_date < ?").run(this.todayInSeoul()); }
+  private expirePosts(): void { this.db?.prepare("UPDATE local_posts SET status = 'EXPIRED' WHERE status IN ('ACTIVE','RESERVED') AND expiry_date < ?").run(this.todayInSeoul()); }
   private formatDDay(expiryDate: string): string {
     const today = new Date(`${this.todayInSeoul()}T00:00:00+09:00`);
     const expiry = new Date(`${expiryDate}T00:00:00+09:00`);

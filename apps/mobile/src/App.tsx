@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { BackHandler, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { createLocalPost, getHealth, getNeighborhood, listLocalPosts, login, register, saveNeighborhood, uploadLocalImage } from './api/client';
+import { createLocalPost, getHealth, getNeighborhood, listLocalPosts, login, register, saveNeighborhood, updateLocalPostStatus, uploadLocalImage } from './api/client';
 import { demoPosts } from './data/demo';
 import { AddScreen } from './screens/AddScreen';
 import { ChatScreen } from './screens/ChatScreen';
@@ -50,13 +50,20 @@ export default function App() {
   async function addPost(input: NewPostInput) {
     const imageUrl = input.photoBase64 && input.photoMimeType ? await uploadLocalImage(input.photoBase64, input.photoMimeType) : undefined;
     const draft = { emoji: '🥕', name: input.name, title: input.title, type: input.type, distance: '0km', dDay: input.expiryDate, place: input.place, color: '#E6F4DE', expiryDate: input.expiryDate, status: 'ACTIVE' as const, imageUrl };
-    const saved = await createLocalPost<FoodPost>(draft).catch(() => ({ id: String(Date.now()), ...draft }));
+    const saved = await createLocalPost<FoodPost>(draft).catch(() => ({ id: String(Date.now()), ...draft, isMine: true }));
     setPosts((current) => [saved, ...current]);
     setTab('home');
   }
+  async function changePostStatus(status: 'ACTIVE' | 'RESERVED' | 'COMPLETED') {
+    if (!selectedPost) return;
+    const updated = await updateLocalPostStatus<FoodPost>(selectedPost.id, status);
+    if (status === 'COMPLETED') { setPosts((current) => current.filter((post) => post.id !== updated.id)); setSelectedPost(null); return; }
+    setPosts((current) => current.map((post) => post.id === updated.id ? updated : post));
+    setSelectedPost(updated);
+  }
   if (!authenticated) return <SafeAreaView style={styles.outer}><View style={styles.phone}><AuthScreen onLogin={handleLogin} onRegister={handleRegister} onDemo={() => setAuthenticated(true)} /></View></SafeAreaView>;
   if (locationChecked && !neighborhood) return <SafeAreaView style={styles.outer}><View style={styles.phone}><LocationScreen onComplete={updateNeighborhood} /></View></SafeAreaView>;
-  if (selectedPost) return <SafeAreaView style={styles.outer}><View style={styles.phone}><PostDetailScreen post={selectedPost} onBack={() => setSelectedPost(null)} onChat={() => { setChatTarget({ roomId: `post-${selectedPost.id}`, item: selectedPost.name, emoji: selectedPost.emoji, neighborName: '게시물 이웃' }); setSelectedPost(null); setTab('chat'); }} /></View></SafeAreaView>;
+  if (selectedPost) return <SafeAreaView style={styles.outer}><View style={styles.phone}><PostDetailScreen post={selectedPost} onBack={() => setSelectedPost(null)} onStatusChange={selectedPost.isMine ? changePostStatus : undefined} onChat={() => { setChatTarget({ roomId: `post-${selectedPost.id}`, item: selectedPost.name, emoji: selectedPost.emoji, neighborName: '게시물 이웃' }); setSelectedPost(null); setTab('chat'); }} /></View></SafeAreaView>;
   return <SafeAreaView style={styles.outer}><StatusBar style="dark" />
     <View style={styles.phone}>
       <View style={[styles.connection, online ? styles.online : styles.demo]}><Text style={styles.connectionText}>{online ? '● API 연결됨' : '● 데모 데이터'}</Text></View>
