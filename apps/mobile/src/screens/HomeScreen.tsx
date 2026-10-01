@@ -3,15 +3,16 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PostCard } from '../components/PostCard';
 import { FoodPost, Neighborhood } from '../types';
 
-export function HomeScreen({ posts, neighborhood, onNeighborhoodChange, onSelectPost }: { posts: FoodPost[]; neighborhood: Neighborhood | null; onNeighborhoodChange: (value: Neighborhood) => Promise<void>; onSelectPost: (post: FoodPost) => void }) {
+export function HomeScreen({ posts, neighborhood, mineOnly = false, onShowAll, onNeighborhoodChange, onSelectPost }: { posts: FoodPost[]; neighborhood: Neighborhood | null; mineOnly?: boolean; onShowAll?: () => void; onNeighborhoodChange: (value: Neighborhood) => Promise<void>; onSelectPost: (post: FoodPost) => void }) {
   const [tradeFilter, setTradeFilter] = useState<'전체' | FoodPost['type']>('전체');
   const [sort, setSort] = useState<'distance' | 'expiry'>('distance');
   const visiblePosts = useMemo(() => posts
+    .filter((post) => !mineOnly || post.isMine)
     .filter((post) => Number.parseFloat(post.distance) <= (neighborhood?.radiusKm ?? 3))
     .filter((post) => tradeFilter === '전체' || post.type === tradeFilter)
     .sort((a, b) => sort === 'distance'
       ? Number.parseFloat(a.distance) - Number.parseFloat(b.distance)
-      : expiryDays(a) - expiryDays(b)), [posts, neighborhood?.radiusKm, sort, tradeFilter]);
+      : expiryDays(a) - expiryDays(b)), [posts, neighborhood?.radiusKm, sort, tradeFilter, mineOnly]);
   const filters: { label: string; value: '전체' | FoodPost['type'] }[] = [
     { label: '전체', value: '전체' }, { label: '나눔', value: '나눔' },
     { label: '교환', value: '교환' }, { label: '한끼', value: '한끼 나눔' },
@@ -26,7 +27,8 @@ export function HomeScreen({ posts, neighborhood, onNeighborhoodChange, onSelect
         <View style={styles.heroCopy}><Text style={styles.eyebrow}>오늘 우리 동네에서</Text><Text style={styles.heroTitle}>버려질 뻔한 식재료가{`\n`}12개나 구조됐어요!</Text><Text style={styles.heroLink}>나의 절약 기록 보기 →</Text></View>
         <Text style={styles.heroEmoji}>🌱</Text>
       </View>
-      <View style={styles.sectionHeader}><View><Text style={styles.sectionTitle}>가까운 이웃 냉장고</Text><Text style={styles.resultCount}>{visiblePosts.length}개의 식재료</Text></View><Pressable onPress={() => setSort((value) => value === 'distance' ? 'expiry' : 'distance')}><Text style={styles.filter}>{sort === 'distance' ? '거리순' : '소비기한순'} ↕</Text></Pressable></View>
+      {mineOnly ? <View style={styles.mineBanner}><View><Text style={styles.mineTitle}>내 게시물</Text><Text style={styles.mineText}>게시물을 눌러 거래 상태를 변경할 수 있어요.</Text></View><Pressable onPress={onShowAll}><Text style={styles.showAll}>전체 보기</Text></Pressable></View> : null}
+      <View style={styles.sectionHeader}><View><Text style={styles.sectionTitle}>{mineOnly ? '내가 등록한 식재료' : '가까운 이웃 냉장고'}</Text><Text style={styles.resultCount}>{visiblePosts.length}개의 식재료</Text></View><Pressable onPress={() => setSort((value) => value === 'distance' ? 'expiry' : 'distance')}><Text style={styles.filter}>{sort === 'distance' ? '거리순' : '소비기한순'} ↕</Text></Pressable></View>
       <View style={styles.radiusRow}><Text style={styles.radiusLabel}>검색 반경</Text>{([1, 3, 5] as const).map((radius) => <Pressable key={radius} onPress={() => neighborhood && void onNeighborhoodChange({ ...neighborhood, radiusKm: radius })}><Text style={[styles.radius, neighborhood?.radiusKm === radius && styles.radiusActive]}>{radius}km</Text></Pressable>)}</View>
       <View style={styles.chips}>{filters.map((filter) => <Pressable key={filter.value} onPress={() => setTradeFilter(filter.value)}><Text style={[styles.chip, tradeFilter === filter.value && styles.chipActive]}>{filter.label}</Text></Pressable>)}</View>
       {visiblePosts.map((post) => <PostCard key={post.id} post={post} onPress={() => onSelectPost(post)} />)}
@@ -46,6 +48,7 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', marginTop: 14, marginBottom: 16 }, chip: { marginRight: 8, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 18, color: '#5D6D64', backgroundColor: '#EDF2EF', overflow: 'hidden', fontSize: 13, fontWeight: '700' },
   chipActive: { color: '#FFF', backgroundColor: '#19734B' },
   radiusRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14 }, radiusLabel: { color: '#7B8B82', fontSize: 12, marginRight: 8 }, radius: { color: '#617269', backgroundColor: '#EDF2EF', paddingHorizontal: 11, paddingVertical: 6, borderRadius: 14, marginRight: 6, overflow: 'hidden', fontSize: 12, fontWeight: '800' }, radiusActive: { color: '#FFF', backgroundColor: '#19734B' }, empty: { textAlign: 'center', color: '#829087', paddingVertical: 35 },
+  mineBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E5F5EA', borderRadius: 16, padding: 15, marginBottom: 18 }, mineTitle: { color: '#174D35', fontWeight: '900', fontSize: 17 }, mineText: { color: '#5D776A', fontSize: 11, marginTop: 3 }, showAll: { color: '#19734B', fontWeight: '900', marginLeft: 10 },
 });
 
 function expiryDays(post: FoodPost): number {

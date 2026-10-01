@@ -2,13 +2,14 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { FoodPost } from '../types';
 
 export function PostCard({ post, onPress }: { post: FoodPost; onPress?: () => void }) {
+  const dDay = displayDDay(post);
   return (
     <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressed]} onPress={onPress}>
       <View style={[styles.image, { backgroundColor: post.color }]}>{post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={{ width: '100%', height: '100%', borderRadius: 14 }}/> : <Text style={styles.emoji}>{post.emoji}</Text>}</View>
       <View style={styles.content}>
         <View style={styles.topline}>
           <Text style={styles.name}>{post.name}</Text>
-          <Text style={[styles.dday, post.dDay === '오늘' && styles.urgent]}>{post.dDay}</Text>
+          <Text style={[styles.dday, dDay === '오늘' && styles.urgent]}>{dDay}</Text>
         </View>
         <Text style={styles.title} numberOfLines={2}>{post.title}</Text>
         <View style={styles.metaRow}>
@@ -19,6 +20,13 @@ export function PostCard({ post, onPress }: { post: FoodPost; onPress?: () => vo
       </View>
     </Pressable>
   );
+}
+
+function displayDDay(post: FoodPost): string {
+  if (!post.expiryDate || post.expiryDate === '2099-12-31') return post.dDay;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const days = Math.round((new Date(`${post.expiryDate}T00:00:00`).getTime() - today.getTime()) / 86_400_000);
+  return days === 0 ? '오늘' : `D-${days}`;
 }
 
 const styles = StyleSheet.create({

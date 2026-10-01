@@ -26,6 +26,7 @@ export default function App() {
   const [chatTarget, setChatTarget] = useState<ChatTarget | undefined>();
   const [neighborhood, setNeighborhood] = useState<Neighborhood | null>(null);
   const [locationChecked, setLocationChecked] = useState(false);
+  const [mineOnly, setMineOnly] = useState(false);
   useEffect(() => { void getHealth().then(setOnline); }, []);
   useEffect(() => {
     if (Platform.OS !== 'android' || !authenticated) return;
@@ -50,7 +51,7 @@ export default function App() {
   async function addPost(input: NewPostInput) {
     const imageUrl = input.photoBase64 && input.photoMimeType ? await uploadLocalImage(input.photoBase64, input.photoMimeType) : undefined;
     const draft = { emoji: '🥕', name: input.name, title: input.title, type: input.type, distance: '0km', dDay: input.expiryDate, place: input.place, color: '#E6F4DE', expiryDate: input.expiryDate, status: 'ACTIVE' as const, imageUrl };
-    const saved = await createLocalPost<FoodPost>(draft).catch(() => ({ id: String(Date.now()), ...draft, isMine: true }));
+    const saved = await createLocalPost<FoodPost>(draft);
     setPosts((current) => [saved, ...current]);
     setTab('home');
   }
@@ -67,8 +68,8 @@ export default function App() {
   return <SafeAreaView style={styles.outer}><StatusBar style="dark" />
     <View style={styles.phone}>
       <View style={[styles.connection, online ? styles.online : styles.demo]}><Text style={styles.connectionText}>{online ? '● API 연결됨' : '● 데모 데이터'}</Text></View>
-      <View style={styles.content}>{tab === 'home' ? <HomeScreen posts={posts} neighborhood={neighborhood} onNeighborhoodChange={updateNeighborhood} onSelectPost={setSelectedPost} /> : tab === 'add' ? <AddScreen onSubmit={addPost} /> : tab === 'chat' ? <ChatScreen startTarget={chatTarget} /> : <ProfileScreen neighborhood={neighborhood} onResetLocation={() => setNeighborhood(null)} />}</View>
-      <View style={styles.nav}>{tabs.map((item) => <Pressable key={item.key} onPress={() => setTab(item.key)} style={styles.navItem}>
+      <View style={styles.content}>{tab === 'home' ? <HomeScreen posts={posts} neighborhood={neighborhood} mineOnly={mineOnly} onShowAll={() => setMineOnly(false)} onNeighborhoodChange={updateNeighborhood} onSelectPost={setSelectedPost} /> : tab === 'add' ? <AddScreen onSubmit={addPost} /> : tab === 'chat' ? <ChatScreen startTarget={chatTarget} /> : <ProfileScreen neighborhood={neighborhood} postCount={posts.filter((post) => post.isMine).length} onMyPosts={() => { setMineOnly(true); setTab('home'); }} onResetLocation={() => setNeighborhood(null)} />}</View>
+      <View style={styles.nav}>{tabs.map((item) => <Pressable key={item.key} onPress={() => { if (item.key === 'home') setMineOnly(false); setTab(item.key); }} style={styles.navItem}>
         <Text style={[styles.navIcon, tab === item.key && styles.active]}>{item.icon}</Text><Text style={[styles.navLabel, tab === item.key && styles.active]}>{item.label}</Text>
       </Pressable>)}</View>
     </View>
