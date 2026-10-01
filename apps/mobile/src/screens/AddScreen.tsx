@@ -14,7 +14,7 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
     setError('');
     const permission = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) { setError(camera ? '카메라 권한이 필요해요.' : '사진 접근 권한이 필요해요.'); return; }
-    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.65, base64: true };
+    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [4, 3], quality: 0.45, base64: true };
     const result = camera ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
     const asset = result.assets?.[0];
     if (!result.canceled && asset?.base64) setPhoto({ uri: asset.uri, base64: asset.base64, mimeType: asset.mimeType ?? 'image/jpeg' });
@@ -27,7 +27,7 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
     if (new Date(`${expiryDate}T00:00:00`) < today) { setError('이미 지난 소비기한은 등록할 수 없어요.'); return; }
     setSubmitting(true);
     try { await onSubmit({ name: name.trim(), title: title.trim(), type, expiryDate, place: place.trim(), photoBase64: photo?.base64, photoMimeType: photo?.mimeType }); setSaved(true); }
-    catch { setError('사진 또는 게시물을 저장하지 못했어요. 다시 시도해 주세요.'); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : '사진 또는 게시물을 저장하지 못했어요. 다시 시도해 주세요.'); }
     finally { setSubmitting(false); }
   }
   return <ScrollView contentContainerStyle={styles.page}>

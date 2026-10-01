@@ -8,10 +8,16 @@ import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  if (process.env.LOCAL_STORE_ENABLED === 'true') {
+    app.enableCors({
+      origin: [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/, /^http:\/\/192\.168\.\d+\.\d+:\d+$/],
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    });
+  }
   const mobileWebRoot = join(__dirname, '..', 'public', 'mobile');
   const uploadRoot = join(process.cwd(), process.env.LOCAL_UPLOAD_PATH ?? 'storage/uploads');
   mkdirSync(uploadRoot, { recursive: true });
-  app.useBodyParser('json', { limit: '8mb' });
+  app.useBodyParser('json', { limit: '25mb' });
   app.useStaticAssets(mobileWebRoot, { prefix: '/mobile' });
   app.useStaticAssets(mobileWebRoot, { prefix: '/' });
   app.useStaticAssets(uploadRoot, { prefix: '/uploads' });

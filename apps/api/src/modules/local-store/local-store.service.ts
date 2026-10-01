@@ -107,11 +107,13 @@ export class LocalStoreService implements OnModuleDestroy {
   }
 
   saveImage(base64: string, mimeType: string): { imageUrl: string } {
-    const extensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+    const extensions: Record<string, string> = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
     const extension = extensions[mimeType];
     if (!extension) throw new BadRequestException('지원하지 않는 이미지 형식입니다.');
-    const buffer = Buffer.from(base64, 'base64');
-    if (!buffer.length || buffer.length > 5 * 1024 * 1024) throw new BadRequestException('사진은 5MB 이하만 등록할 수 있습니다.');
+    const cleanBase64 = base64.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '').replace(/\s/g, '');
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(cleanBase64)) throw new BadRequestException('사진 데이터를 읽을 수 없습니다.');
+    const buffer = Buffer.from(cleanBase64, 'base64');
+    if (!buffer.length || buffer.length > 15 * 1024 * 1024) throw new BadRequestException('사진은 15MB 이하만 등록할 수 있습니다.');
     mkdirSync(this.uploadPath, { recursive: true });
     const filename = `${randomUUID()}.${extension}`;
     writeFileSync(resolve(this.uploadPath, filename), buffer, { flag: 'wx' });
