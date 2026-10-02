@@ -49,3 +49,10 @@ export interface ChatMessage {
   message: string;
   sentAt: string;
 }
+
+export interface Appointment {
+  roomId: string;
+  meetAt: string;
+  place: string;
+  updatedAt?: string;
+}

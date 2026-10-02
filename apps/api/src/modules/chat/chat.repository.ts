@@ -5,7 +5,7 @@ import { ChatMessageRecord, ChatRoomRecord } from './chat.types';
 
 type RoomRow = {
   id: string; post_id: string; post_title: string; owner_id: string;
-  requester_id: string; created_at: Date;
+  requester_id: string; meet_at: string | null; meet_place: string | null; created_at: Date;
 };
 type MessageRow = {
   id: string; room_id: string; sender_id: string; message: string;
@@ -27,7 +27,7 @@ export class ChatRepository {
          DO UPDATE SET post_id = EXCLUDED.post_id
          RETURNING *
        )
-       SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, r.created_at
+       SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, to_char(r.meet_at, 'YYYY-MM-DD"T"HH24:MI') AS meet_at, r.meet_place, r.created_at
        FROM inserted r JOIN posts p ON p.id = r.post_id`,
       [postId, requesterId],
     );
@@ -36,7 +36,7 @@ export class ChatRepository {
 
   async listRooms(userId: string): Promise<ChatRoomRecord[]> {
     const result = await this.pool.query<RoomRow>(
-      `SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, r.created_at
+      `SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, to_char(r.meet_at, 'YYYY-MM-DD"T"HH24:MI') AS meet_at, r.meet_place, r.created_at
        FROM chat_rooms r JOIN posts p ON p.id = r.post_id
        WHERE r.owner_id = $1 OR r.requester_id = $1
        ORDER BY r.created_at DESC`,
@@ -47,13 +47,17 @@ export class ChatRepository {
 
   async findRoomForUser(roomId: string, userId: string): Promise<ChatRoomRecord | null> {
     const result = await this.pool.query<RoomRow>(
-      `SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, r.created_at
+      `SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, to_char(r.meet_at, 'YYYY-MM-DD"T"HH24:MI') AS meet_at, r.meet_place, r.created_at
        FROM chat_rooms r JOIN posts p ON p.id = r.post_id
        WHERE r.id = $1 AND (r.owner_id = $2 OR r.requester_id = $2)
        LIMIT 1`,
       [roomId, userId],
     );
     return result.rows[0] ? this.mapRoom(result.rows[0]) : null;
+  }
+
+  async saveAppointment(roomId: string, meetAt: string, place: string): Promise<void> {
+    await this.pool.query('UPDATE chat_rooms SET meet_at = $2, meet_place = $3 WHERE id = $1', [roomId, meetAt, place]);
   }
 
   async listMessages(roomId: string, limit: number, offset: number): Promise<ChatMessageRecord[]> {
@@ -80,6 +84,7 @@ export class ChatRepository {
     return {
       id: row.id, postId: row.post_id, postTitle: row.post_title,
       ownerId: row.owner_id, requesterId: row.requester_id,
+      meetAt: row.meet_at, meetPlace: row.meet_place,
       createdAt: row.created_at.toISOString(),
     };
   }

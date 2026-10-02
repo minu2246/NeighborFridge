@@ -1,7 +1,23 @@
 {
   "version": 1,
   "project": "NeighborFridge",
-  "localResourcesOutsideProject": [],
+  "localResourcesOutsideProject": [
+    {
+      "type": "docker-containers",
+      "name": "compose 프로젝트 neighborfridge (postgres, redis)",
+      "location": "Docker Desktop 내부(WSL2 가상 디스크)",
+      "purpose": "정식 모드 개발용 DB",
+      "removal": "프로젝트 루트에서 docker compose down",
+      "note": "DB 데이터 자체는 프로젝트 안 storage/db/에 저장되어 cleanup-project.ps1로 정리됨"
+    },
+    {
+      "type": "docker-images",
+      "name": "postgis/postgis:17-3.5, redis:7-alpine",
+      "location": "Docker Desktop 내부(WSL2 가상 디스크)",
+      "purpose": "compose.yaml 이미지",
+      "removal": "docker image rm postgis/postgis:17-3.5 redis:7-alpine"
+    }
+  ],
   "remoteResources": [
     {
       "type": "github-repository",
@@ -15,6 +31,20 @@
       "name": "Git",
       "projectOwned": false,
       "removeWhenProjectEnds": false
+    },
+    {
+      "name": "Docker Desktop",
+      "installedFor": "NeighborFridge 정식 모드 개발 DB (2026-10-02 설치 예정)",
+      "projectOwned": true,
+      "removeWhenProjectEnds": "ask",
+      "removal": "winget uninstall Docker.DockerDesktop"
+    },
+    {
+      "name": "WSL2",
+      "installedFor": "Docker Desktop 의존성",
+      "projectOwned": true,
+      "removeWhenProjectEnds": "ask",
+      "note": "다른 용도로 쓰고 있으면 유지. 제거 시 wsl --list로 docker-desktop 배포판 확인 후 wsl --unregister docker-desktop"
     }
   ]
 }

@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS users (
   nickname VARCHAR(50) NOT NULL,
   profile_image TEXT,
   location GEOGRAPHY(POINT, 4326),
+  neighborhood_name VARCHAR(80),
+  search_radius_km SMALLINT NOT NULL DEFAULT 3,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -61,6 +63,8 @@ CREATE TABLE IF NOT EXISTS chat_rooms (
   post_id UUID NOT NULL REFERENCES posts(id),
   owner_id UUID NOT NULL REFERENCES users(id),
   requester_id UUID NOT NULL REFERENCES users(id),
+  meet_at TIMESTAMP,
+  meet_place VARCHAR(80),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (post_id, owner_id, requester_id),
   CHECK (owner_id <> requester_id)

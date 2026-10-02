@@ -14,7 +14,7 @@ export class UsersService {
   }
 
   async updateMyLocation(userId: string, input: UpdateLocationDto): Promise<UserRecord> {
-    const user = await this.usersRepository.updateLocation(userId, input.latitude, input.longitude);
+    const user = await this.usersRepository.updateLocation(userId, input.latitude, input.longitude, input.neighborhoodName, input.radiusKm);
     if (!user) throw new NotFoundException('사용자를 찾을 수 없습니다.');
     return user;
   }

@@ -6,7 +6,7 @@ import { ChatService } from '../src/modules/chat/chat.service';
 describe('ChatService', () => {
   const repository = {
     createRoom: jest.fn(), findRoomForUser: jest.fn(), createMessage: jest.fn(),
-    listRooms: jest.fn(), listMessages: jest.fn(),
+    listRooms: jest.fn(), listMessages: jest.fn(), saveAppointment: jest.fn(),
   } as unknown as ChatRepository;
   const events = { publish: jest.fn() } as unknown as ChatEventsService;
   const service = new ChatService(repository, events);
@@ -32,5 +32,14 @@ describe('ChatService', () => {
     await expect(service.sendMessage('user-1', 'room-1', ' 안녕하세요 ')).resolves.toEqual(message);
     expect(repository.createMessage).toHaveBeenCalledWith('room-1', 'user-1', '안녕하세요');
     expect(events.publish).toHaveBeenCalledWith(message);
+  });
+
+  it('saves an appointment and posts it as a chat message', async () => {
+    (repository.findRoomForUser as jest.Mock).mockResolvedValue({ id: 'room-1' });
+    (repository.createMessage as jest.Mock).mockImplementation((_room, _sender, message) => ({ message }));
+    const result = await service.saveAppointment('user-1', 'room-1', '2099-01-03T09:05', ' 시청역 ');
+    expect(repository.saveAppointment).toHaveBeenCalledWith('room-1', '2099-01-03T09:05', '시청역');
+    expect(result.message.message).toBe('📅 약속: 1월 3일 09:05 · 시청역');
+    await expect(service.saveAppointment('user-1', 'room-1', '2000-01-01T10:00', '시청역')).rejects.toBeInstanceOf(BadRequestException);
   });
 });

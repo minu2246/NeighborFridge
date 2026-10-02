@@ -8,7 +8,7 @@ import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  if (process.env.LOCAL_STORE_ENABLED === 'true') {
+  if (process.env.LOCAL_STORE_ENABLED === 'true' || process.env.NODE_ENV === 'development') {
     app.enableCors({
       origin: [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/, /^http:\/\/192\.168\.\d+\.\d+:\d+$/],
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

@@ -35,7 +35,7 @@ export class CreatePostDto {
 
   @IsArray()
   @ArrayMaxSize(5)
-  @IsUrl({}, { each: true })
+  @IsUrl({ require_tld: false }, { each: true })
   imageUrls: string[] = [];
 
   @Type(() => Number)

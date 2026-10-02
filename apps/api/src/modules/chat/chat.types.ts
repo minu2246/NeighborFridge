@@ -4,6 +4,8 @@ export interface ChatRoomRecord {
   postTitle: string;
   ownerId: string;
   requesterId: string;
+  meetAt: string | null;
+  meetPlace: string | null;
   createdAt: string;
 }
 
@@ -14,4 +16,9 @@ export interface ChatMessageRecord {
   message: string;
   sentAt: string;
   readAt: string | null;
+}
+
+// meetAt: 서울 기준 'YYYY-MM-DDTHH:mm'
+export function formatAppointmentMessage(meetAt: string, place: string): string {
+  return `📅 약속: ${Number(meetAt.slice(5, 7))}월 ${Number(meetAt.slice(8, 10))}일 ${meetAt.slice(11, 16)} · ${place}`;
 }

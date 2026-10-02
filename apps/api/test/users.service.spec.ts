@@ -11,7 +11,7 @@ describe('UsersService', () => {
   it('updates only the authenticated user location', async () => {
     (repository.updateLocation as jest.Mock).mockResolvedValue({ id: 'user-1' });
     await service.updateMyLocation('user-1', { latitude: 37.5, longitude: 127.0 });
-    expect(repository.updateLocation).toHaveBeenCalledWith('user-1', 37.5, 127.0);
+    expect(repository.updateLocation).toHaveBeenCalledWith('user-1', 37.5, 127.0, undefined, undefined);
   });
 
   it('returns not found when the user no longer exists', async () => {

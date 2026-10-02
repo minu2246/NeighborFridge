@@ -1,0 +1,5 @@
+-- 동네 이름·검색 반경, 채팅방 거래 약속
+ALTER TABLE users ADD COLUMN IF NOT EXISTS neighborhood_name VARCHAR(80);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS search_radius_km SMALLINT NOT NULL DEFAULT 3;
+ALTER TABLE chat_rooms ADD COLUMN IF NOT EXISTS meet_at TIMESTAMP;
+ALTER TABLE chat_rooms ADD COLUMN IF NOT EXISTS meet_place VARCHAR(80);

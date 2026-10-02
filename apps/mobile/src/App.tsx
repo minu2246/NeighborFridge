@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { BackHandler, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { createLocalPost, getHealth, getNeighborhood, listLocalPosts, login, register, saveNeighborhood, updateLocalPostStatus, uploadLocalImage } from './api/client';
+import { createPost, getHealth, getNeighborhood, listPosts, login, openChatRoom, register, saveNeighborhood, updatePostStatus, USE_LOCAL_STORE } from './api/client';
 import { demoPosts } from './data/demo';
 import { AddScreen } from './screens/AddScreen';
 import { ChatScreen } from './screens/ChatScreen';
@@ -39,32 +39,35 @@ export default function App() {
   }, [authenticated, selectedPost, tab]);
   useEffect(() => {
     if (!authenticated) return;
-    void listLocalPosts<FoodPost>().then((saved) => { if (saved.length > 0) setPosts(saved); }).catch(() => undefined);
-    void getNeighborhood<Neighborhood>().then(setNeighborhood).catch(() => undefined).finally(() => setLocationChecked(true));
+    void getNeighborhood().then(setNeighborhood).catch(() => undefined).finally(() => setLocationChecked(true));
   }, [authenticated]);
+  useEffect(() => {
+    if (!authenticated || !neighborhood) return;
+    void listPosts(neighborhood).then((saved) => { if (saved.length > 0 || !USE_LOCAL_STORE) setPosts(saved); }).catch(() => undefined);
+  }, [authenticated, neighborhood]);
   async function updateNeighborhood(value: Neighborhood) {
-    const saved = await saveNeighborhood<Neighborhood>(value).catch(() => value);
+    const saved = await saveNeighborhood(value).catch(() => value);
     setNeighborhood(saved);
   }
   async function handleLogin(email: string, password: string) { await login(email, password); setAuthenticated(true); }
   async function handleRegister(email: string, nickname: string, password: string) { await register(email, nickname, password); setAuthenticated(true); }
   async function addPost(input: NewPostInput) {
-    const imageUrl = input.photoBase64 && input.photoMimeType ? await uploadLocalImage(input.photoBase64, input.photoMimeType) : undefined;
-    const draft = { emoji: '🥕', name: input.name, title: input.title, type: input.type, distance: '0km', dDay: input.expiryDate, place: input.place, color: '#E6F4DE', expiryDate: input.expiryDate, status: 'ACTIVE' as const, imageUrl };
-    const saved = await createLocalPost<FoodPost>(draft);
+    if (!neighborhood) throw new Error('동네를 먼저 인증해 주세요.');
+    const saved = await createPost(input, neighborhood);
     setPosts((current) => [saved, ...current]);
     setTab('home');
   }
   async function changePostStatus(status: 'ACTIVE' | 'RESERVED' | 'COMPLETED') {
     if (!selectedPost) return;
-    const updated = await updateLocalPostStatus<FoodPost>(selectedPost.id, status);
+    await updatePostStatus(selectedPost.id, status);
+    const updated = { ...selectedPost, status };
     if (status === 'COMPLETED') { setPosts((current) => current.filter((post) => post.id !== updated.id)); setSelectedPost(null); return; }
     setPosts((current) => current.map((post) => post.id === updated.id ? updated : post));
     setSelectedPost(updated);
   }
   if (!authenticated) return <SafeAreaView style={styles.outer}><View style={styles.phone}><AuthScreen onLogin={handleLogin} onRegister={handleRegister} onDemo={() => setAuthenticated(true)} /></View></SafeAreaView>;
   if (locationChecked && !neighborhood) return <SafeAreaView style={styles.outer}><View style={styles.phone}><LocationScreen onComplete={updateNeighborhood} /></View></SafeAreaView>;
-  if (selectedPost) return <SafeAreaView style={styles.outer}><View style={styles.phone}><PostDetailScreen post={selectedPost} onBack={() => setSelectedPost(null)} onStatusChange={selectedPost.isMine ? changePostStatus : undefined} onChat={() => { setChatTarget({ roomId: `post-${selectedPost.id}`, item: selectedPost.name, emoji: selectedPost.emoji, neighborName: '게시물 이웃' }); setSelectedPost(null); setTab('chat'); }} /></View></SafeAreaView>;
+  if (selectedPost) return <SafeAreaView style={styles.outer}><View style={styles.phone}><PostDetailScreen post={selectedPost} onBack={() => setSelectedPost(null)} onStatusChange={selectedPost.isMine ? changePostStatus : undefined} onChat={selectedPost.isMine && !USE_LOCAL_STORE ? undefined : async () => { setChatTarget(await openChatRoom(selectedPost)); setSelectedPost(null); setTab('chat'); }} /></View></SafeAreaView>;
   return <SafeAreaView style={styles.outer}><StatusBar style="dark" />
     <View style={styles.phone}>
       <View style={[styles.connection, online ? styles.online : styles.demo]}><Text style={styles.connectionText}>{online ? '● API 연결됨' : '● 데모 데이터'}</Text></View>

@@ -5,12 +5,15 @@ import { dirname, resolve } from 'node:path';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { PasswordService } from '../auth/password.service';
+import { formatAppointmentMessage } from '../chat/chat.types';
 
 export interface LocalPost {
   id: string; emoji: string; name: string; title: string; type: string;
   distance: string; dDay: string; place: string; color: string;
   expiryDate: string; status: 'ACTIVE' | 'RESERVED' | 'COMPLETED' | 'EXPIRED'; imageUrl?: string; isMine: true;
 }
+
+export interface LocalAppointment { roomId: string; meetAt: string; place: string; updatedAt: string; }
 
 export interface LocalNeighborhood {
   name: string; latitude: number; longitude: number; radiusKm: number; verifiedAt: string;
@@ -43,6 +46,9 @@ export class LocalStoreService implements OnModuleDestroy {
       CREATE TABLE IF NOT EXISTS local_messages (
         id TEXT PRIMARY KEY, room_id TEXT NOT NULL, sender TEXT NOT NULL,
         message TEXT NOT NULL, sent_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS local_appointments (
+        room_id TEXT PRIMARY KEY, meet_at TEXT NOT NULL, place TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS local_settings (
         key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL
@@ -112,6 +118,21 @@ export class LocalStoreService implements OnModuleDestroy {
     const value = { id: randomUUID(), roomId, sender, message: message.trim(), sentAt: new Date().toISOString() };
     this.requireDb().prepare('INSERT INTO local_messages (id,room_id,sender,message,sent_at) VALUES (?,?,?,?,?)').run(value.id, value.roomId, value.sender, value.message, value.sentAt);
     return value;
+  }
+
+  getAppointment(roomId: string): LocalAppointment | null {
+    return (this.requireDb().prepare('SELECT room_id AS roomId,meet_at AS meetAt,place,updated_at AS updatedAt FROM local_appointments WHERE room_id = ?').get(roomId) as LocalAppointment | undefined) ?? null;
+  }
+
+  // meetAt: 서울 기준 'YYYY-MM-DDTHH:mm'. 약속 저장 시 채팅방에 약속 메시지도 남긴다.
+  saveAppointment(roomId: string, sender: string, meetAt: string, place: string) {
+    if (meetAt.slice(0, 10) < this.todayInSeoul()) throw new BadRequestException('지난 날짜로는 약속을 잡을 수 없습니다.');
+    const appointment: LocalAppointment = { roomId, meetAt, place: place.trim(), updatedAt: new Date().toISOString() };
+    this.requireDb().prepare(`INSERT INTO local_appointments (room_id,meet_at,place,updated_at) VALUES (?,?,?,?)
+      ON CONFLICT(room_id) DO UPDATE SET meet_at=excluded.meet_at, place=excluded.place, updated_at=excluded.updated_at`)
+      .run(roomId, appointment.meetAt, appointment.place, appointment.updatedAt);
+    const message = this.createMessage(roomId, sender, formatAppointmentMessage(meetAt, appointment.place));
+    return { appointment, message };
   }
 
   saveImage(base64: string, mimeType: string): { imageUrl: string } {

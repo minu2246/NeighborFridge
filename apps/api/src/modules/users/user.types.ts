@@ -3,6 +3,8 @@ export interface UserRecord {
   email: string;
   nickname: string;
   profileImage: string | null;
+  neighborhoodName: string | null;
+  radiusKm: number;
   latitude: number | null;
   longitude: number | null;
   createdAt: string;

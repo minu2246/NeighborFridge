@@ -40,7 +40,7 @@ export class UpdatePostDto {
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(5)
-  @IsUrl({}, { each: true })
+  @IsUrl({ require_tld: false }, { each: true })
   imageUrls?: string[];
 
   @IsOptional()

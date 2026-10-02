@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, Put } from '@nestjs/common';
-import { IsDateString, IsEmail, IsIn, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsDateString, IsEmail, IsIn, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { LocalPost, LocalStoreService } from './local-store.service';
 
 class LocalRegisterDto { @IsEmail() email!: string; @IsString() @MinLength(2) nickname!: string; @IsString() @MinLength(10) password!: string; }
@@ -8,6 +8,7 @@ class LocalPostDto { @IsString() emoji!: string; @IsString() name!: string; @IsS
 class LocalMessageDto { @IsString() sender!: string; @IsString() @MinLength(1) @MaxLength(2000) message!: string; }
 class LocalImageDto { @IsString() base64!: string; @IsIn(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']) mimeType!: string; }
 class LocalPostStatusDto { @IsIn(['ACTIVE', 'RESERVED', 'COMPLETED']) status!: 'ACTIVE' | 'RESERVED' | 'COMPLETED'; }
+class LocalAppointmentDto { @IsString() sender!: string; @Matches(/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/) meetAt!: string; @IsString() @MinLength(2) @MaxLength(80) place!: string; }
 class LocalNeighborhoodDto {
   @IsString() @MinLength(2) @MaxLength(80) name!: string;
   @IsLatitude() latitude!: number;
@@ -26,6 +27,8 @@ export class LocalStoreController {
   @Post('uploads') saveImage(@Body() input: LocalImageDto) { return this.store.saveImage(input.base64, input.mimeType); }
   @Get('rooms/:roomId/messages') listMessages(@Param('roomId') roomId: string) { return this.store.listMessages(roomId); }
   @Post('rooms/:roomId/messages') createMessage(@Param('roomId') roomId: string, @Body() input: LocalMessageDto) { return this.store.createMessage(roomId, input.sender, input.message); }
+  @Get('rooms/:roomId/appointment') getAppointment(@Param('roomId') roomId: string) { return this.store.getAppointment(roomId); }
+  @Put('rooms/:roomId/appointment') saveAppointment(@Param('roomId') roomId: string, @Body() input: LocalAppointmentDto) { return this.store.saveAppointment(roomId, input.sender, input.meetAt, input.place); }
   @Get('neighborhood') getNeighborhood() { return this.store.getNeighborhood(); }
   @Put('neighborhood') saveNeighborhood(@Body() input: LocalNeighborhoodDto) { return this.store.saveNeighborhood(input); }
 }

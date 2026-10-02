@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ChatEventsService } from './chat-events.service';
 import { ChatRepository } from './chat.repository';
-import { ChatMessageRecord, ChatRoomRecord } from './chat.types';
+import { ChatMessageRecord, ChatRoomRecord, formatAppointmentMessage } from './chat.types';
 import { ListMessagesDto } from './dto/list-messages.dto';
 
 @Injectable()
@@ -31,6 +31,21 @@ export class ChatService {
     const message = await this.repository.createMessage(roomId, userId, value.trim());
     this.events.publish(message);
     return message;
+  }
+
+  async getAppointment(userId: string, roomId: string) {
+    const room = await this.requireParticipant(userId, roomId);
+    return room.meetAt && room.meetPlace ? { roomId, meetAt: room.meetAt, place: room.meetPlace } : null;
+  }
+
+  async saveAppointment(userId: string, roomId: string, meetAt: string, value: string) {
+    await this.requireParticipant(userId, roomId);
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+    if (meetAt.slice(0, 10) < today) throw new BadRequestException('지난 날짜로는 약속을 잡을 수 없습니다.');
+    const place = value.trim();
+    await this.repository.saveAppointment(roomId, meetAt, place);
+    const message = await this.sendMessage(userId, roomId, formatAppointmentMessage(meetAt, place));
+    return { appointment: { roomId, meetAt, place }, message };
   }
 
   async requireParticipant(userId: string, roomId: string): Promise<ChatRoomRecord> {

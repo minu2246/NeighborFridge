@@ -68,7 +68,7 @@ export class PostsRepository {
         p.expiry_date - (NOW() AT TIME ZONE 'Asia/Seoul')::date AS d_day
       FROM posts p
       CROSS JOIN params
-      WHERE p.status = 'ACTIVE'
+      WHERE p.status IN ('ACTIVE', 'RESERVED')
         AND p.expiry_date >= (NOW() AT TIME ZONE 'Asia/Seoul')::date
         AND ST_DWithin(p.location, params.user_location, $3 * 1000.0)
       ORDER BY ${orderBy}

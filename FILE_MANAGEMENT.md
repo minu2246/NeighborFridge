@@ -38,10 +38,10 @@
 2. 운영 DB, 객체 저장소, Firebase/AWS 자원의 보존 여부를 별도로 결정합니다.
 3. 필요한 데이터만 암호화 백업합니다.
 4. `scripts/audit-storage.ps1`로 전체 크기와 외부 자원 목록을 확인합니다.
-5. 로컬 실행 프로세스와 컨테이너를 종료합니다.
+5. 로컬 실행 프로세스를 종료하고(`npm run phone:stop`), 프로젝트 루트에서 `docker compose down`으로 컨테이너를 제거합니다.
 6. `scripts/cleanup-project.ps1`로 삭제 예정 목록을 먼저 확인합니다.
 7. 검토 후 `scripts/cleanup-project.ps1 -Execute`로 재생성 가능한 내부 파일을 정리합니다.
-8. `EXTERNAL_RESOURCES.json`의 프로젝트 밖 항목을 하나씩 확인합니다.
+8. `EXTERNAL_RESOURCES.json`의 프로젝트 밖 항목을 하나씩 확인합니다. (Docker 이미지 삭제, Docker Desktop·WSL2 제거 여부는 사용자에게 확인)
 9. 저장소 루트가 정확히 `NeighborFridge`인지 확인합니다.
 10. 소스까지 없앨 때만 저장소 폴더 전체를 휴지통으로 이동합니다.
 11. GitHub 저장소 및 클라우드 자원 삭제는 별도 승인 후 진행합니다.

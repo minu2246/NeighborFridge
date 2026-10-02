@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsLatitude, IsLongitude } from 'class-validator';
+import { IsIn, IsLatitude, IsLongitude, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class UpdateLocationDto {
   @Type(() => Number)
@@ -9,4 +9,14 @@ export class UpdateLocationDto {
   @Type(() => Number)
   @IsLongitude()
   longitude!: number;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(80)
+  neighborhoodName?: string;
+
+  @IsOptional()
+  @IsIn([1, 3, 5])
+  radiusKm?: number;
 }
