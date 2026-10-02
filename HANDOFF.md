@@ -1,6 +1,6 @@
 # HANDOFF — NeighborFridge (이웃냉장고)
 
-> 마지막 갱신: 2026-10-02 · 작성: Claude Code
+> 마지막 갱신: 2026-10-03 · 작성: Claude Code
 > Claude Code / Codex / ChatGPT 간 작업 인수인계 문서입니다. 작업 시작 시 먼저 읽고, 작업 종료 시 갱신합니다. (하단 "AI 작업 규칙" 참고)
 
 ## 1. 프로젝트 개요
@@ -14,11 +14,11 @@
   5. 게시물 단위 1:1 실시간 채팅
 - 이후 확장: 사진 기반 자동 등록(소비기한·품목·알레르기 성분 → 게시물 자동 작성, 7절 참고), 레시피 추천, 탄소 절감량·매너 등급
 
-## 2. Git 상태 (2026-10-02 기준)
+## 2. Git 상태 (2026-10-03 기준)
 - 브랜치: `main` (`origin/main`과 동기화), stash 없음
 - 원격: `https://github.com/minu2246/NeighborFridge.git`
-- 최신 커밋 `32d4ee4 Add Claude project instructions`
-- 2026-10-02 커밋: 거래 약속 기능 + 모바일 ↔ 정식 API 연동 + 문서(아래 5절). 미추적(의도적으로 커밋 제외): `graphify-out/`(자동 생성물), `team-reference/`(팀원 원본 자료)
+- 기능 커밋 `ec2b485 feat: connect mobile to main API and add trade appointments` (push 완료). 그 뒤 이 HANDOFF 갱신 커밋이 이어짐
+- 미추적(의도적으로 커밋 제외): `graphify-out/`(자동 생성물, 현재 코드 기준으로 오래됨), `team-reference/`(팀원 원본 자료)
 - 최근 흐름: Expo 모바일 MVP → 로컬 SQLite 저장 → 휴대폰 미리보기 → 사진 업로드 → 만료 처리 → 필터·정렬 → 소비기한 달력·거래 상태 → 상태 영속화·내 게시물
 
 ## 3. 프로젝트 구성
@@ -60,20 +60,27 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 
 ## 5. 진행 중인 작업
 - 마지막 기능 작업: 로컬 저장 모드 게시물 상태 영속화 + "내 게시물" 보기 (`5b198a7`)
-- 이번 세션: 테스트·빌드 실행, `HANDOFF.md` 작성, Codex용 `AGENTS.md` 추가 (코드 변경 없음)
+- 2026-10-01 (Codex): 테스트·빌드 실행, `HANDOFF.md` 작성, Codex용 `AGENTS.md` 추가 (코드 변경 없음)
 - 2026-10-02: 팀원의 SoloSafe 진행 현황 및 창업동아리 최종 목표 참고 문서 3개를 `team-reference/solosafe/`에 원본 그대로 보관. NeighborFridge 자체 기획·구현 현황과 분리하며, SoloSafe의 완료 항목을 NeighborFridge 완료 항목으로 간주하지 않음
-- 2026-10-02 (Claude Code): **거래 약속(시간·장소) 기능 — 로컬 저장 모드 한정**
+- 2026-10-02 (Claude Code): **거래 약속(시간·장소) 기능 — 로컬 저장 모드 먼저 구현 (이후 아래 연동 작업에서 정식 API에도 반영)**
   - API: `local_appointments` 테이블(채팅방당 1건, upsert), `GET/PUT /api/local/rooms/:roomId/appointment` (`meetAt`=서울 기준 `YYYY-MM-DDTHH:mm`, 지난 날짜 거부). 저장 시 "📅 약속: M월 D일 HH:mm · 장소" 메시지를 채팅에 자동 기록
   - Mobile: 채팅방 상단 약속 배너(없으면 "약속 잡기", 있으면 "변경") + 날짜(`DatePickerModal` 재사용)·시간·장소 입력 폼
   - 변경 파일: `apps/api/src/modules/local-store/local-store.{service,controller}.ts`, `apps/api/test/local-store.service.spec.ts`(신규), `apps/mobile/src/{types.ts,api/client.ts,screens/ChatScreen.tsx}`
-  - 미검증: 실제 화면(웹/휴대폰)에서 약속 UI 동작 확인 안 함. 정식 API(`/chats`, PostgreSQL)에는 미반영
+  - 미검증: 실제 화면(웹/휴대폰)에서 약속 UI 동작 확인 안 함
 - 2026-10-02 (Claude Code): **모바일 ↔ 정식 API 연동 (코드 완료, DB 실행 검증 안 됨)**
   - 사용자 결정: 외부 배포는 마지막, 정식 백엔드 연동은 지금 (로컬 SQLite 모드에서 기능을 쌓으면 이중 구현이 되므로)
   - API: `users`에 `neighborhood_name`·`search_radius_km`, `chat_rooms`에 `meet_at`·`meet_place` 추가(`001_schema.sql` + 기존 DB용 `004` 마이그레이션), 정식 채팅 약속 엔드포인트, nearby가 RESERVED 포함, `imageUrls` 검증 `require_tld: false`(localhost/IP 허용), `NODE_ENV=development`에서도 CORS 허용, 약속 메시지 포맷 `formatAppointmentMessage`(`chat.types.ts`) 공용화
   - Mobile: `client.ts` 재작성(토큰 보관·Authorization 헤더, 정식 응답 → `FoodPost`/`ChatMessage` 변환, 빈 응답 null 처리), `App.tsx`·`ChatScreen.tsx`·`PostDetailScreen.tsx` 연결
   - 검증: 단위 테스트·빌드·타입체크 통과, 로컬 모드 API 스모크(동네 저장, 약속 저장/조회, 지난 날짜 400, 빈 약속 200 빈 응답, 토큰 없는 `/chats/rooms` 401) 확인
+  - 실행 모드: `npm run start:web`은 정식 모드(기본). `phone:start`·`build-mobile-web.ps1`은 스크립트가 `EXPO_PUBLIC_USE_LOCAL_STORE=true`를 설정하므로 계속 로컬 모드
   - **미검증**: PostgreSQL/PostGIS 위에서 정식 모드 전체 흐름(이 PC에 Docker·PostgreSQL 미설치), 앱 화면 동작
-- 다음 작업: ① DB 환경 준비(Docker Desktop 설치 또는 개발용 클라우드 Postgres) → `.env` 작성 → 001~004 적용 → 두 계정으로 등록·채팅·약속·상태 변경 E2E 확인 ② 정식 모드 남은 구멍(아래 7절)
+- 2026-10-02 (Claude Code): DB 환경은 **Docker Desktop으로 결정**(사양 확인: RAM 31GB, 가상화 켜짐, WSL2 미설치로 보임). 사용자가 직접 설치 예정(`winget install Docker.DockerDesktop`, 재부팅 필요할 수 있음). Docker 관련 외부 자원은 설치 전에 `EXTERNAL_RESOURCES.json`·`FILE_MANAGEMENT.md`에 기록
+- 2026-10-02: 사진 기반 게시물 자동 작성(소비기한·품목·알레르기 성분) 요구사항·설계 메모를 7절과 `PROJECT_BRIEF.md`에 기록 (미구현, AI 서비스·API 키 미정)
+- **다음 작업**
+  1. 사용자의 Docker Desktop 설치 완료 확인 → `.env` 작성(`.env.example` 복사, `DATABASE_URL`은 `compose.yaml` 값과 맞춤) → `docker compose up -d`(새 DB는 `001`에 002~004 포함) → `npm run start:api` + `npm run start:web` → 두 계정으로 등록·채팅·약속·상태 변경 E2E 확인 → 발견한 버그 수정
+  2. 정식 모드 남은 구멍 정리(아래 7절)
+  3. 사진 기반 자동 작성 기능 (AI 서비스·API 키 사용자 결정 필요)
+  4. 기능 완성 후 외부 배포
 
 ## 6. 테스트·빌드 상태 (2026-10-02 재실행: test·build·mobile typecheck / 웹 export는 2026-10-01 결과)
 | 명령 | 결과 |
