@@ -76,6 +76,7 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
   - **미검증**: PostgreSQL/PostGIS 위에서 정식 모드 전체 흐름(이 PC에 Docker·PostgreSQL 미설치), 앱 화면 동작
 - 2026-10-02 (Claude Code): DB 환경은 **Docker Desktop으로 결정**(사양 확인: RAM 31GB, 가상화 켜짐, WSL2 미설치로 보임). 사용자가 직접 설치 예정(`winget install Docker.DockerDesktop`, 재부팅 필요할 수 있음). Docker 관련 외부 자원은 설치 전에 `EXTERNAL_RESOURCES.json`·`FILE_MANAGEMENT.md`에 기록
 - 2026-10-02: 사진 기반 게시물 자동 작성(소비기한·품목·알레르기 성분) 요구사항·설계 메모를 7절과 `PROJECT_BRIEF.md`에 기록 (미구현, AI 서비스·API 키 미정)
+- 2026-10-03 (Claude Code): `README.md` 재작성 (개발 배경·목적·목표, 기능 진행 현황표, 기술 스택, 구조, 실행 방법, 문서 링크). 개발 배경의 1인 가구 문구는 Claude가 작성한 서술이라 사용자 검토 필요
 - **다음 작업**
   1. 사용자의 Docker Desktop 설치 완료 확인 → `.env` 작성(`.env.example` 복사, `DATABASE_URL`은 `compose.yaml` 값과 맞춤) → `docker compose up -d`(새 DB는 `001`에 002~004 포함) → `npm run start:api` + `npm run start:web` → 두 계정으로 등록·채팅·약속·상태 변경 E2E 확인 → 발견한 버그 수정
   2. 정식 모드 남은 구멍 정리(아래 7절)

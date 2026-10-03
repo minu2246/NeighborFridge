@@ -1,52 +1,130 @@
-# NeighborFridge (이웃냉장고)
+# 🥬 NeighborFridge (이웃냉장고)
 
-유통기한 임박 식재료와 남는 음식을 이웃끼리 나누거나 교환하는 위치 기반 C2C 서비스입니다.
+> 냉장고 속 남는 식재료를 가까운 이웃과 나누는 위치 기반 C2C 나눔·교환 앱
 
-## 저장소 구성
+유통기한이 얼마 남지 않은 식재료나 만들고 남은 음식을 버리지 않고 같은 동네 이웃과 **나눔 · 교환 · 한끼 나눔**으로 주고받을 수 있게 합니다.
 
-- `apps/mobile`: React Native 모바일 앱
-- `apps/api`: NestJS API 및 WebSocket 서버
-- `apps/worker`: 만료 처리와 알림 배치
-- `packages`: 앱 사이에서 공유하는 타입과 검증 규칙
-- `docs`: 제품·아키텍처·운영 문서
-- `infra`: 로컬 개발 및 배포 설정
-- `scripts`: 설치, 실행, 점검, 정리 스크립트
-- `storage`: 로컬 전용 다운로드·업로드·캐시 영역(Git 제외)
+<br>
 
-프로젝트 파일의 저장·다운로드·정리 원칙은 [FILE_MANAGEMENT.md](FILE_MANAGEMENT.md)를 참고하세요.
+## 📌 개발 배경
 
-로컬 용량과 잔여물은 다음 명령으로 언제든 점검할 수 있습니다. 이 명령은 파일을 삭제하지 않습니다.
+- 1인 가구가 늘면서 **대용량 식재료를 다 쓰지 못하고 버리는 일**이 잦아졌습니다.
+- 버리기 아까운 식재료가 있어도 **주변에 필요한 사람을 찾을 마땅한 방법이 없습니다.**
+- 기존 중고거래 앱은 유통기한이 짧은 식품에 맞춰져 있지 않습니다. 소비기한이 언제인지, 언제 마감되는지, 가까운 곳에서 빨리 만날 수 있는지가 잘 드러나지 않습니다.
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\audit-storage.ps1
+## 🎯 개발 목적
+
+| 목적 | 설명 |
+|---|---|
+| **음식물 폐기 감소** | 버려질 식재료가 필요한 이웃에게 소비기한 안에 전달되도록 돕습니다 |
+| **지역 나눔 활성화** | 같은 동네 이웃끼리 부담 없이 주고받는 문화를 만듭니다 |
+| **안전한 거래** | 정확한 집 주소 대신 거리와 공공장소 약속만 공유합니다 |
+
+## 🚀 목표
+
+### 1단계 · MVP
+1. 이메일·소셜 로그인과 GPS 기반 동네 인증
+2. 사진·상품명·소비기한·거래 유형·거래 장소를 담은 게시물 등록
+3. 주변 게시물을 **거리순 / 소비기한(D-Day)순**으로 조회
+4. 소비기한이 지난 게시물 자동 비활성화
+5. 게시물 단위 1:1 채팅과 거래 약속(시간·장소)
+
+### 2단계 · 확장
+- 📷 **사진 기반 자동 작성**: 포장 사진에서 소비기한·품목 정보·알레르기 유발 성분을 추출해 게시물을 자동으로 채움 (사용자가 확인한 뒤 등록)
+- 🍳 동네에 올라온 식재료를 조합한 레시피 추천
+- 🌱 탄소 절감량·절약 금액 기록, 매너 등급
+- 🔔 소비기한 임박·채팅 푸시 알림
+
+<br>
+
+## ✨ 주요 기능과 진행 현황
+
+| 기능 | 상태 |
+|---|---|
+| 이메일 회원가입·로그인 (JWT) | ✅ 구현 |
+| 소셜 로그인 | ⬜ 예정 |
+| GPS 동네 인증 / 직접 입력, 검색 반경(1·3·5km) | ✅ 구현 |
+| 게시물 등록 (사진, 소비기한 달력, 거래 유형) | ✅ 구현 |
+| 주변 게시물 조회 (PostGIS 거리 검색, 거리순·D-Day순, 유형 필터) | ✅ 구현 |
+| 거래 상태 변경 (예약중 · 거래 완료), 내 게시물 보기 | ✅ 구현 |
+| 소비기한 경과 게시물 자동 만료 | ✅ 구현 |
+| 게시물별 1:1 채팅 + 거래 약속 잡기 | ✅ 구현 (현재 앱은 5초 간격으로 새 메시지 확인) |
+| 사진 기반 소비기한·품목·알레르기 자동 추출 | ⬜ 예정 |
+| 푸시 알림 | ⬜ 예정 |
+| 외부 배포 | ⬜ 앱 기능을 완성한 뒤 진행 |
+
+<br>
+
+## 🛠 기술 스택
+
+| 영역 | 기술 |
+|---|---|
+| **Mobile** | Expo SDK 57 · React Native 0.86 · React 19 · TypeScript (iOS · Android · Web) |
+| **API** | NestJS 11 · class-validator · 자체 JWT 인증 |
+| **Database** | PostgreSQL 17 + PostGIS (`GEOGRAPHY` + GiST 인덱스, `ST_DWithin`) |
+| **실시간** | SSE(Server-Sent Events). WebSocket + Redis Pub/Sub로 확장 예정 |
+| **로컬 개발** | Docker Compose (PostGIS, Redis), Docker 없이 쓸 수 있는 `node:sqlite` 로컬 저장 모드 |
+| **예정** | S3 호환 사진 저장소, Firebase Cloud Messaging |
+
+<br>
+
+## 📂 프로젝트 구조
+
+```
+NeighborFridge/
+├── apps/
+│   ├── mobile/      # Expo 앱 (화면, API 클라이언트)
+│   ├── api/         # NestJS API (auth · users · posts · chat · local-store)
+│   └── worker/      # 만료·알림 배치 (예정)
+├── packages/        # 공유 타입·검증 규칙 (예정)
+├── infra/database/  # 스키마(init)와 마이그레이션
+├── scripts/         # 휴대폰 미리보기, 웹 빌드, 용량 점검·정리
+├── docs/            # 아키텍처, 휴대폰 테스트 안내
+└── storage/         # 로컬 DB·업로드·캐시 (Git 제외)
 ```
 
-## 기본 기술 방향
+<br>
 
-- Mobile: React Native
-- API/Batch: NestJS
-- Database: PostgreSQL + PostGIS
-- Cache/Realtime: Redis + WebSocket
-- Media: S3 호환 객체 저장소
-- Push: Firebase Cloud Messaging
+## ▶️ 실행 방법
 
-현재 저장소는 시스템 설계와 MVP 구현을 시작하기 위한 초기 구조입니다.
-
-## 개발 시작
+> Node.js 22 이상이 필요합니다.
 
 ```powershell
 npm install
-docker compose up -d
-npm run start:api
-npm run start:web
 ```
 
-Docker가 없는 환경에서도 `npm test`와 `npm run build`로 API 로직을 검증할 수 있습니다. npm 다운로드 캐시는 프로젝트 내부 `storage/cache/npm`에 저장됩니다.
+**A. 정식 모드** (Docker 필요)
+```powershell
+copy .env.example .env      # 값을 채워 넣기 (비밀값은 Git에 올리지 않음)
+docker compose up -d        # PostgreSQL/PostGIS, Redis
+npm run start:api           # http://localhost:3000/api
+npm run start:web           # 브라우저에서 앱 확인
+```
 
-모바일 앱은 Expo 기반이며 `npm run start:web`으로 브라우저에서 동일한 화면을 확인할 수 있습니다.
+**B. 휴대폰으로 바로 테스트** (Docker 없이, 로컬 SQLite 모드)
+```powershell
+npm run phone:check
+npm run phone:start         # Expo Go로 QR 코드 스캔
+npm run phone:stop          # 테스트를 마친 뒤 종료
+```
+PC와 휴대폰이 같은 Wi-Fi에 연결되어 있어야 합니다. 자세한 내용은 [휴대폰 테스트 안내](docs/MOBILE_TEST.md)를 참고하세요.
 
-실제 휴대폰에서는 PC와 같은 Wi-Fi에 연결한 후 `npm run phone:check`, `npm run phone:start` 순서로 실행합니다. 자세한 내용은 [휴대폰 테스트 안내](docs/MOBILE_TEST.md)를 참고하세요. 테스트 종료 후 `npm run phone:stop`으로 프로젝트가 시작한 백그라운드 API를 종료합니다.
+**검증**
+```powershell
+npm test                                          # API 단위 테스트
+npm run build                                     # API 빌드
+npm run typecheck --workspace @neighbor-fridge/mobile
+```
 
-## 프로젝트 내부 로컬 저장 모드
+<br>
 
-Docker 없이 개발할 때는 `LOCAL_STORE_ENABLED=true`로 API를 실행할 수 있습니다. 회원과 게시물, 채팅 메시지는 `storage/db/neighbor-fridge-local.sqlite`에 저장되며 Git에는 포함되지 않습니다. 운영 환경에서는 이 모드를 끄고 PostgreSQL/PostGIS를 사용합니다.
+## 📚 문서
+
+| 문서 | 내용 |
+|---|---|
+| [PROJECT_BRIEF.md](PROJECT_BRIEF.md) | 목적과 MVP 범위 |
+| [docs/architecture.md](docs/architecture.md) | MVP 아키텍처 |
+| [apps/api/README.md](apps/api/README.md) | API 엔드포인트 |
+| [apps/mobile/README.md](apps/mobile/README.md) | 모바일 실행 방법 |
+| [HANDOFF.md](HANDOFF.md) | 개발 진행 현황과 인수인계 |
+| [FILE_MANAGEMENT.md](FILE_MANAGEMENT.md) | 파일 저장 원칙, 프로젝트 종료 시 정리 방법 |
