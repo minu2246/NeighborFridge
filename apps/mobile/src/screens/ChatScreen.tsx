@@ -58,7 +58,7 @@ export function ChatScreen({ startTarget }: { startTarget?: ChatTarget }) {
   async function savePlan() {
     if (!selected) return;
     if (!planDate) return setPlanError('날짜를 선택하세요.');
-    if (!/^([01]d|2[0-3]):[0-5]d$/.test(planTime)) return setPlanError('시간은 18:30 형식으로 입력하세요.');
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(planTime)) return setPlanError('시간은 18:30 형식으로 입력하세요.');
     if (planPlace.trim().length < 2) return setPlanError('만날 장소를 입력하세요.');
     try {
       const saved = await saveAppointment(selected.roomId, `${planDate}T${planTime}`, planPlace);

@@ -1,6 +1,6 @@
 # HANDOFF — NeighborFridge (이웃냉장고)
 
-> 마지막 갱신: 2026-10-03 · 작성: Claude Code
+> 마지막 갱신: 2026-10-20 · 작성: Claude Code
 > Claude Code / Codex / ChatGPT 간 작업 인수인계 문서입니다. 작업 시작 시 먼저 읽고, 작업 종료 시 갱신합니다. (하단 "AI 작업 규칙" 참고)
 
 ## 1. 프로젝트 개요
@@ -77,16 +77,24 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 - 2026-10-02 (Claude Code): DB 환경은 **Docker Desktop으로 결정**(사양 확인: RAM 31GB, 가상화 켜짐, WSL2 미설치로 보임). 사용자가 직접 설치 예정(`winget install Docker.DockerDesktop`, 재부팅 필요할 수 있음). Docker 관련 외부 자원은 설치 전에 `EXTERNAL_RESOURCES.json`·`FILE_MANAGEMENT.md`에 기록
 - 2026-10-02: 사진 기반 게시물 자동 작성(소비기한·품목·알레르기 성분) 요구사항·설계 메모를 7절과 `PROJECT_BRIEF.md`에 기록 (미구현, AI 서비스·API 키 미정)
 - 2026-10-03 (Claude Code): `README.md` 재작성 (개발 배경·목적·목표, 기능 진행 현황표, 기술 스택, 구조, 실행 방법, 문서 링크). 개발 배경의 1인 가구 문구는 Claude가 작성한 서술이라 사용자 검토 필요
+- 2026-10-20 (Claude Code): **정식 모드 E2E 검증 완료 (미커밋)**
+  - 환경: Docker Desktop 4.95.0 + WSL 3.0.3.0 설치·재부팅 완료, `docker compose up -d`로 PostGIS 3.5/Redis 기동, `001_schema.sql`로 테이블·신규 컬럼(`neighborhood_name`, `search_radius_km`, `meet_at`, `meet_place`) 생성 확인. 루트 `.env` 생성(Git 제외, `JWT_SECRET` 무작위)
+  - **버그 수정 1**: `npm run start:api`가 `tsx watch`로 실행돼 Nest DI 실패(`Cannot read properties of undefined (reading 'getOrThrow')`, esbuild가 데코레이터 메타데이터 미생성) + `apps/api`에서 실행돼 루트 `.env` 미인식 → 루트 `start:api`를 "API 빌드 후 루트에서 `node apps/api/dist/main.js`"로, `apps/api`의 `start:dev`도 `tsc` 빌드 후 실행으로 변경. 자동 재시작(watch)은 없음. `tsx` devDependency는 이제 미사용(제거 안 함)
+  - **버그 수정 2**: 약속 시간 정규식의 역슬래시 누락(10/2 작업 시 스크립트로 파일을 쓰며 발생) → 정식 API `SaveAppointmentDto`가 모든 시간을 거부, 앱 `ChatScreen`도 모든 시간을 "형식 오류" 처리하던 문제 수정. 재발 방지 테스트 `apps/api/test/save-appointment.dto.spec.ts` 추가
+  - E2E: 앱의 실제 `client.ts`를 tsx로 불러와 두 계정 시나리오 12단계 통과 (가입·동네 저장/조회, 사진 포함 등록·사진 URL 접근, 자기 게시물 채팅 거부, 주변 조회 거리·D-Day·isMine, 채팅방 생성/재사용, 메시지·약속, 남의 게시물 상태 변경 거부, 상대 기준 메시지 방향, 예약중 표시, 완료 후 목록 제외, 지난 날짜 거부). Expo Web 출처 CORS 허용 확인. 스크립트는 세션 임시 폴더에만 있음(저장소 미포함)
+  - 남은 테스트 데이터: 개발 DB(`storage/db/postgres`)에 테스트 계정 2개·게시물 1개, `storage/uploads/`에 1x1 PNG 1개 (정리 스크립트 대상)
+  - UI 테스트: 사용자가 Expo Web(정식 모드, 두 창)에서 가입·동네 인증·사진 게시물 등록·채팅·약속·예약중/거래 완료 흐름을 직접 확인, 모두 정상 (2026-10-20). 휴대폰 실기기 정식 모드는 미확인
+  - Docker Desktop 부팅 자동 시작 해제, 바탕 화면 바로가기는 사용자 시작 메뉴 폴더로 이동(사용자 요청). 개발 시 Docker Desktop을 직접 실행해야 함
 - **다음 작업**
-  1. 사용자의 Docker Desktop 설치 완료 확인 → `.env` 작성(`.env.example` 복사, `DATABASE_URL`은 `compose.yaml` 값과 맞춤) → `docker compose up -d`(새 DB는 `001`에 002~004 포함) → `npm run start:api` + `npm run start:web` → 두 계정으로 등록·채팅·약속·상태 변경 E2E 확인 → 발견한 버그 수정
-  2. 정식 모드 남은 구멍 정리(아래 7절)
-  3. 사진 기반 자동 작성 기능 (AI 서비스·API 키 사용자 결정 필요)
-  4. 기능 완성 후 외부 배포
+  1. 정식 모드 남은 구멍 정리(아래 7절)
+  2. 사진 기반 자동 작성 기능 (AI 서비스·API 키 사용자 결정 필요)
+  3. 기능 완성 후 외부 배포
 
 ## 6. 테스트·빌드 상태 (2026-10-02 재실행: test·build·mobile typecheck / 웹 export는 2026-10-01 결과)
 | 명령 | 결과 |
 |---|---|
-| `npm test` (API Jest) | ✅ 6 suites / 17 tests 통과 (약속 테스트 3건 추가) |
+| `npm test` (API Jest) | ✅ 7 suites / 18 tests 통과 (2026-10-20) |
+| 정식 모드 E2E (Docker PostGIS, 두 계정, `client.ts` 사용) | ✅ 12단계 통과 (2026-10-20) |
 | `npm run build` (API `tsc`) | ✅ 오류 없음 → `apps/api/dist/` |
 | `npm run typecheck --workspace @neighbor-fridge/mobile` | ✅ 오류 없음 |
 | `scripts/build-mobile-web.ps1` (Expo web export) | ✅ 성공 → `apps/api/public/mobile/` (bundle 약 469KB). 첫 실행 시 Node 경고 1건 출력, 재실행 시 재현되지 않음 |
@@ -189,7 +197,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\audit-storage.ps1
   2. `scripts/cleanup-project.ps1`(인자 없이)로 삭제 예정 목록만 출력해 사용자에게 제시
   3. 승인 후 `scripts/cleanup-project.ps1 -Execute`
 - GitHub 저장소·클라우드 DB·S3·Firebase 등 외부 자원은 항목별 별도 승인 (`deletionRequiresSeparateApproval`)
-- Docker Desktop·WSL2·Docker 이미지/컨테이너는 `EXTERNAL_RESOURCES.json`에 기록됨(2026-10-02, 설치 전 선기록). 종료 시 `docker compose down` → 이미지 삭제 → Desktop/WSL2 제거 여부 사용자 확인
+- 프로젝트 밖 설치물(Docker Desktop, WSL, 가상 머신 플랫폼 기능, Docker 데이터 폴더, docker-desktop WSL 배포판, 이미지/컨테이너)은 `EXTERNAL_RESOURCES.json`에 기록됨(2026-10-20 실제 설치 기준 보완). 제거 순서는 같은 파일의 `uninstallOrder`. Desktop·WSL·가상화 기능 제거는 사용자 확인 후
 - 소스 폴더 전체 삭제는 영구 삭제가 아닌 휴지통 이동
 - 비밀번호·API 키·토큰 등 민감정보는 이 문서와 Git에 기록하지 않는다
 

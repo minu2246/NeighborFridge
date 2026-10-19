@@ -9,7 +9,7 @@
   "scripts": {
     "build": "npm run build --workspace @neighbor-fridge/api",
     "test": "npm run test --workspace @neighbor-fridge/api",
-    "start:api": "npm run start:dev --workspace @neighbor-fridge/api",
+    "start:api": "npm run build --workspace @neighbor-fridge/api && node apps/api/dist/main.js",
     "start:mobile": "npm run start --workspace @neighbor-fridge/mobile",
     "start:web": "npm run web --workspace @neighbor-fridge/mobile",
     "phone:check": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-phone-preview.ps1 -CheckOnly",
