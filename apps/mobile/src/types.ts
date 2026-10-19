@@ -15,6 +15,8 @@ export interface FoodPost {
   status?: 'ACTIVE' | 'RESERVED' | 'COMPLETED' | 'EXPIRED';
   imageUrl?: string;
   isMine?: boolean;
+  description?: string;
+  authorName?: string;
 }
 
 export interface NewPostInput {
@@ -23,6 +25,7 @@ export interface NewPostInput {
   type: TradeType;
   expiryDate: string;
   place: string;
+  description?: string;
   photoBase64?: string;
   photoMimeType?: string;
 }

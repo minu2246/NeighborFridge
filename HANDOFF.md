@@ -85,6 +85,14 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
   - 남은 테스트 데이터: 개발 DB(`storage/db/postgres`)에 테스트 계정 2개·게시물 1개, `storage/uploads/`에 1x1 PNG 1개 (정리 스크립트 대상)
   - UI 테스트: 사용자가 Expo Web(정식 모드, 두 창)에서 가입·동네 인증·사진 게시물 등록·채팅·약속·예약중/거래 완료 흐름을 직접 확인, 모두 정상 (2026-10-20). 휴대폰 실기기 정식 모드는 미확인
   - Docker Desktop 부팅 자동 시작 해제, 바탕 화면 바로가기는 사용자 시작 메뉴 폴더로 이동(사용자 요청). 개발 시 Docker Desktop을 직접 실행해야 함
+- 2026-10-20 (Claude Code): **정식 모드 남은 구멍 정리**
+  - 로그인 유지: `expo-secure-store` 추가(`npx expo install`, `app.json`에 플러그인 자동 추가). 웹은 `localStorage`, 앱은 secure-store에 `{token, userId, nickname}` 저장 → 앱 시작 시 `restoreSession()`이 `/users/me`로 검증, 실패 시 삭제. 로컬 모드는 저장 안 함. secure-store는 사용 시점 `require`(Node E2E에서 client.ts를 불러오기 위함)
+  - 로그아웃: 프로필 화면에 버튼 추가(데모 진입이면 "로그인하러 가기"), 상태 전체 초기화
+  - 닉네임: `GET /posts/nearby`에 `authorNickname`, `GET /chats/rooms`에 `partnerNickname`(요청자 기준 상대) 추가. 게시물 상세 작성자명, 채팅방 상대명에 반영
+  - 고정 문구 제거: 게시물 상세의 가짜 설명·"매너온도 48.5°"·"보관 상태 냉장 보관" 삭제 → 실제 `description` 표시(없으면 숨김). 등록 화면에 "설명 (선택)" 입력 추가, 프로필 이름은 실제 닉네임
+  - 검증: 테스트 18개·빌드·타입체크 통과, 기존 E2E 12단계 + 신규 E2E 9단계(세션 저장/복원/로그아웃/위조 토큰 거부, 설명, 작성자·상대 닉네임) 통과, 웹 번들에 새 코드 반영 확인
+  - 참고: Expo Web을 `CI=1`로 띄우면 Metro가 파일 변경을 감지하지 않아 옛 코드가 계속 나옴 → `CI` 없이 실행
+  - 정리: `npx expo install`을 `apps/mobile`에서 실행해 생긴 `apps/mobile/storage/cache/npm`(npm 캐시 43MB)은 사용자 승인 후 삭제. 이후 npm/expo 명령은 루트에서 실행할 것
 - **다음 작업**
   1. 정식 모드 남은 구멍 정리(아래 7절)
   2. 사진 기반 자동 작성 기능 (AI 서비스·API 키 사용자 결정 필요)
@@ -105,8 +113,8 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 ## 7. 주요 남은 작업
 - 정식 모드 남은 구멍 (2026-10-02 연동 후)
   - 사진 업로드가 정식 모드에서도 `/local/uploads`(인증 없음, 로컬 디스크) 사용 → 외부 배포 전 S3 호환 저장소 + 인증 업로드 필요
-  - 토큰 메모리 보관 → 앱 새로고침 시 재로그인 (`expo-secure-store` 검토)
-  - 채팅 상대 닉네임·마지막 메시지 미표시(채팅방 API에 없음), 게시물 상세의 작성자명·설명은 하드코딩
+  - 채팅 목록에 마지막 메시지·안 읽은 수 미표시
+  - 프로필의 통계(나눔 완료 7, 탄소 절감 3.2kg, 매너 온도 48.5°)와 관심 목록·알림 설정·계정 메뉴는 고정 값/미구현
   - 게시물 좌표 = 인증한 동네 좌표(게시물별 위치 지정 없음)
   - 데모 진입(로그인 없이)은 정식 모드에서 조회만 가능
 - 소셜 로그인 미구현 (이메일만)

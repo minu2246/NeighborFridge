@@ -19,6 +19,7 @@ type DbPostRow = {
   place_name: string | null;
   distance_km?: string;
   d_day?: number;
+  author_nickname?: string;
   created_at: Date;
 };
 
@@ -65,8 +66,10 @@ export class PostsRepository {
       SELECT p.id, p.user_id, p.title, p.description, p.item_name, p.image_urls,
         p.expiry_date::text, p.trade_type, p.status, p.place_name, p.created_at,
         ST_Distance(p.location, params.user_location) / 1000.0 AS distance_km,
-        p.expiry_date - (NOW() AT TIME ZONE 'Asia/Seoul')::date AS d_day
+        p.expiry_date - (NOW() AT TIME ZONE 'Asia/Seoul')::date AS d_day,
+        u.nickname AS author_nickname
       FROM posts p
+      JOIN users u ON u.id = p.user_id
       CROSS JOIN params
       WHERE p.status IN ('ACTIVE', 'RESERVED')
         AND p.expiry_date >= (NOW() AT TIME ZONE 'Asia/Seoul')::date
@@ -172,6 +175,7 @@ export class PostsRepository {
       placeName: row.place_name,
       distanceKm: row.distance_km === undefined ? undefined : Number(row.distance_km),
       dDay: row.d_day,
+      authorNickname: row.author_nickname,
       createdAt: row.created_at.toISOString(),
     };
   }

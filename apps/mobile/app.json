@@ -5,17 +5,37 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "plugins": [["expo-location", { "locationWhenInUsePermission": "내 주변의 식재료를 찾기 위해 현재 위치를 사용합니다." }], ["expo-image-picker", { "photosPermission": "나눔할 식재료 사진을 선택하기 위해 사진 보관함을 사용합니다.", "cameraPermission": "나눔할 식재료 사진을 촬영하기 위해 카메라를 사용합니다." }]],
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "내 주변의 식재료를 찾기 위해 현재 위치를 사용합니다."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "나눔할 식재료 사진을 선택하기 위해 사진 보관함을 사용합니다.",
+          "cameraPermission": "나눔할 식재료 사진을 촬영하기 위해 카메라를 사용합니다."
+        }
+      ],
+      "expo-secure-store"
+    ],
     "web": {
       "bundler": "metro"
     },
     "android": {
       "package": "com.neighborfridge.app",
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "ios": {
       "bundleIdentifier": "com.neighborfridge.app",
-      "infoPlist": { "NSLocationWhenInUseUsageDescription": "내 주변의 식재료를 찾기 위해 현재 위치를 사용합니다." }
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "내 주변의 식재료를 찾기 위해 현재 위치를 사용합니다."
+      }
     }
   }
 }

@@ -9,8 +9,17 @@ export interface AuthResponse {
 }
 export const USE_LOCAL_STORE = process.env.EXPO_PUBLIC_USE_LOCAL_STORE === 'true';
 
-// ponytail: 토큰은 메모리에만 보관 → 앱 새로고침 시 재로그인 필요. 자동 로그인이 필요하면 expo-secure-store로 옮긴다.
-let session: { token: string; userId: string } | null = null;
+let session: { token: string; userId: string; nickname: string } | null = null;
+
+// 로그인 유지: 웹은 localStorage, 앱(localStorage 없음)은 expo-secure-store(기기 암호화 저장소). 정식 모드에서만 사용.
+// secure-store는 쓰는 시점에 불러온다 → Node에서 이 파일을 불러오는 E2E 스크립트도 동작.
+const SESSION_KEY = 'neighborfridge.session';
+const secureStore = () => require('expo-secure-store') as typeof import('expo-secure-store');
+const sessionStore = {
+  get: async () => typeof localStorage !== 'undefined' ? localStorage.getItem(SESSION_KEY) : secureStore().getItemAsync(SESSION_KEY),
+  set: async (value: string) => typeof localStorage !== 'undefined' ? localStorage.setItem(SESSION_KEY, value) : secureStore().setItemAsync(SESSION_KEY, value),
+  remove: async () => typeof localStorage !== 'undefined' ? localStorage.removeItem(SESSION_KEY) : secureStore().deleteItemAsync(SESSION_KEY),
+};
 
 export async function getHealth(): Promise<boolean> {
   try {
@@ -37,8 +46,30 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
 
 async function authenticate(path: string, body: object): Promise<AuthResponse> {
   const result = await request<AuthResponse>(path, { method: 'POST', body: JSON.stringify(body) });
-  session = { token: result.accessToken, userId: result.user.id };
+  session = { token: result.accessToken, userId: result.user.id, nickname: result.user.nickname };
+  if (!USE_LOCAL_STORE) await sessionStore.set(JSON.stringify(session)).catch(() => undefined);
   return result;
+}
+
+// 저장된 로그인 복원. 토큰이 만료됐거나 서버가 거부하면 지우고 null.
+export async function restoreSession(): Promise<{ nickname: string } | null> {
+  if (USE_LOCAL_STORE) return null;
+  const saved = await sessionStore.get().catch(() => null);
+  if (!saved) return null;
+  session = JSON.parse(saved) as NonNullable<typeof session>;
+  try {
+    const me = await request<{ nickname: string }>('/users/me', { method: 'GET' });
+    session.nickname = me.nickname;
+    return { nickname: me.nickname };
+  } catch {
+    await logout();
+    return null;
+  }
+}
+
+export async function logout(): Promise<void> {
+  session = null;
+  await sessionStore.remove().catch(() => undefined);
 }
 
 export function login(email: string, password: string): Promise<AuthResponse> {
@@ -51,7 +82,7 @@ export function register(email: string, nickname: string, password: string): Pro
 
 // ---- 정식 API 응답 → 화면 타입 변환 ----
 interface ApiPost {
-  id: string; userId: string; title: string; itemName: string; imageUrls: string[]; expiryDate: string;
+  id: string; userId: string; title: string; description: string | null; authorNickname?: string; itemName: string; imageUrls: string[]; expiryDate: string;
   tradeType: 'SHARE' | 'TRADE' | 'FREE_MEAL'; status: FoodPost['status']; placeName: string | null; distanceKm?: number; dDay?: number;
 }
 const tradeTypes: Record<ApiPost['tradeType'], TradeType> = { SHARE: '나눔', TRADE: '교환', FREE_MEAL: '한끼 나눔' };
@@ -63,6 +94,7 @@ function toFoodPost(post: ApiPost): FoodPost {
     distance: `${(post.distanceKm ?? 0).toFixed(1)}km`, dDay: post.dDay === undefined ? post.expiryDate : post.dDay === 0 ? '오늘' : `D-${post.dDay}`,
     place: post.placeName ?? '', color: '#E6F4DE', expiryDate: post.expiryDate, status: post.status,
     imageUrl: post.imageUrls[0], isMine: post.userId === session?.userId,
+    description: post.description ?? undefined, authorName: post.authorNickname,
   };
 }
 
@@ -79,8 +111,8 @@ export async function createPost(input: NewPostInput, neighborhood: Neighborhood
     return request('/local/posts', { method: 'POST', body: JSON.stringify(draft) });
   }
   // ponytail: 게시물 좌표 = 인증한 동네 좌표. 게시물별 거래 위치 지정이 필요하면 등록 화면에서 좌표를 받는다.
-  const body = { title: input.title, itemName: input.name, expiryDate: input.expiryDate, tradeType: tradeCodes[input.type], imageUrls: imageUrl ? [imageUrl] : [], latitude: neighborhood.latitude, longitude: neighborhood.longitude, placeName: input.place };
-  return toFoodPost(await request<ApiPost>('/posts', { method: 'POST', body: JSON.stringify(body) }));
+  const body = { title: input.title, itemName: input.name, expiryDate: input.expiryDate, tradeType: tradeCodes[input.type], imageUrls: imageUrl ? [imageUrl] : [], latitude: neighborhood.latitude, longitude: neighborhood.longitude, placeName: input.place, ...(input.description ? { description: input.description } : {}) };
+  return { ...toFoodPost(await request<ApiPost>('/posts', { method: 'POST', body: JSON.stringify(body) })), authorName: session?.nickname };
 }
 
 export async function updatePostStatus(postId: string, status: 'ACTIVE' | 'RESERVED' | 'COMPLETED'): Promise<void> {
@@ -102,15 +134,15 @@ export async function saveNeighborhood(value: Neighborhood): Promise<Neighborhoo
 
 // ---- 채팅 ----
 export async function openChatRoom(post: FoodPost): Promise<ChatTarget> {
-  const target = { item: post.name, emoji: post.emoji, neighborName: '게시물 이웃' };
+  const target = { item: post.name, emoji: post.emoji, neighborName: post.authorName ?? '게시물 이웃' };
   if (USE_LOCAL_STORE) return { roomId: `post-${post.id}`, ...target };
   const room = await request<{ id: string }>('/chats/rooms', { method: 'POST', body: JSON.stringify({ postId: post.id }) });
   return { roomId: room.id, ...target };
 }
 
 export async function listChatRooms(): Promise<ChatTarget[]> {
-  const rooms = await request<{ id: string; postTitle: string; ownerId: string }[]>('/chats/rooms', { method: 'GET' });
-  return rooms.map((room) => ({ roomId: room.id, item: room.postTitle, emoji: '🥕', neighborName: room.ownerId === session?.userId ? '문의한 이웃' : '게시물 이웃' }));
+  const rooms = await request<{ id: string; postTitle: string; ownerId: string; partnerNickname?: string }[]>('/chats/rooms', { method: 'GET' });
+  return rooms.map((room) => ({ roomId: room.id, item: room.postTitle, emoji: '🥕', neighborName: room.partnerNickname ?? (room.ownerId === session?.userId ? '문의한 이웃' : '게시물 이웃') }));
 }
 
 const roomPath = (roomId: string) => `/${USE_LOCAL_STORE ? 'local' : 'chats'}/rooms/${encodeURIComponent(roomId)}`;

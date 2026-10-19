@@ -16,5 +16,6 @@ export interface PostRecord {
   placeName: string | null;
   distanceKm?: number;
   dDay?: number;
+  authorNickname?: string;
   createdAt: string;
 }

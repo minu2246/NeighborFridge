@@ -8,6 +8,7 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
   const [name, setName] = useState(''); const [title, setTitle] = useState('');
   const [type, setType] = useState<TradeType>('나눔'); const [expiryDate, setExpiryDate] = useState('');
   const [place, setPlace] = useState(''); const [saved, setSaved] = useState(false);
+  const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [photo, setPhoto] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -24,7 +25,7 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
   }
   async function savePost() {
     setSubmitting(true);
-    try { await onSubmit({ name: name.trim(), title: title.trim(), type, expiryDate, place: place.trim(), photoBase64: photo?.base64, photoMimeType: photo?.mimeType }); setSaved(true); }
+    try { await onSubmit({ name: name.trim(), title: title.trim(), type, expiryDate, place: place.trim(), description: description.trim() || undefined, photoBase64: photo?.base64, photoMimeType: photo?.mimeType }); setSaved(true); }
     catch (reason) { setError(reason instanceof Error ? reason.message : '사진 또는 게시물을 저장하지 못했어요. 다시 시도해 주세요.'); }
     finally { setSubmitting(false); }
   }
@@ -42,6 +43,7 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
     <View style={styles.photo}>{photo ? <><Image source={{ uri: photo.uri }} style={styles.preview}/><Pressable style={styles.remove} onPress={() => setPhoto(null)}><Text style={styles.removeText}>사진 삭제</Text></Pressable></> : <><Text style={styles.photoEmoji}>📷</Text><Text style={styles.photoText}>식재료 사진 추가</Text><View style={styles.photoActions}><Pressable onPress={() => void pickPhoto(true)}><Text style={styles.photoButton}>카메라</Text></Pressable><Pressable onPress={() => void pickPhoto(false)}><Text style={styles.photoButton}>갤러리</Text></Pressable></View></>}</View>
     <Label text="식재료 이름" /><TextInput value={name} onChangeText={setName} style={styles.input} placeholder="예: 유정란 6구" placeholderTextColor="#9AA8A0" />
     <Label text="게시물 제목" /><TextInput value={title} onChangeText={setTitle} style={styles.input} placeholder="이웃에게 보여줄 한마디" placeholderTextColor="#9AA8A0" />
+    <Label text="설명 (선택)" /><TextInput value={description} onChangeText={setDescription} style={[styles.input, styles.multiline]} placeholder="보관 상태, 남은 양 등을 알려주세요" placeholderTextColor="#9AA8A0" multiline maxLength={2000} />
     <Label text="거래 방식" /><View style={styles.options}>{(['나눔', '교환', '한끼 나눔'] as TradeType[]).map((value) => <Pressable key={value} onPress={() => setType(value)}><Text style={[styles.option, type === value && styles.selected]}>{value}</Text></Pressable>)}</View>
     <Label text="소비기한" /><Pressable onPress={() => setCalendarOpen(true)} style={styles.dateButton}><Text style={expiryDate ? styles.dateValue : styles.datePlaceholder}>{expiryDate ? formatDate(expiryDate) : '날짜 선택하기'}</Text><Text style={styles.calendarIcon}>▣</Text></Pressable>
     <Label text="거래 장소" /><TextInput value={place} onChangeText={setPlace} style={styles.input} placeholder="안전한 공공장소를 입력하세요" placeholderTextColor="#9AA8A0" />
@@ -64,6 +66,6 @@ const styles = StyleSheet.create({
   options: { flexDirection: 'row' }, option: { paddingVertical: 10, paddingHorizontal: 15, backgroundColor: '#EDF2EF', color: '#5D6D64', borderRadius: 12, overflow: 'hidden', marginRight: 8, fontWeight: '700' }, selected: { backgroundColor: '#19734B', color: '#FFF' },
   saved: { color: '#19734B', fontWeight: '800', marginTop: 18, textAlign: 'center' }, submit: { height: 54, borderRadius: 16, backgroundColor: '#19734B', alignItems: 'center', justifyContent: 'center', marginTop: 18 }, submitText: { color: '#FFF', fontWeight: '900', fontSize: 16 },
   error: { color: '#B54C3C', fontSize: 12, fontWeight: '700', marginTop: 12, textAlign: 'center' },
-  disabled: { opacity: 0.55 },
+  disabled: { opacity: 0.55 }, multiline: { height: 96, paddingTop: 13, textAlignVertical: 'top' },
   warningOverlay: { flex: 1, backgroundColor: 'rgba(17,39,29,.5)', alignItems: 'center', justifyContent: 'center', padding: 24 }, warningBox: { width: '100%', maxWidth: 360, backgroundColor: '#FFF', borderRadius: 24, padding: 24, alignItems: 'center' }, warningEmoji: { fontSize: 36 }, warningTitle: { color: '#5C4018', fontSize: 19, fontWeight: '900', marginTop: 10 }, warningText: { color: '#735F3D', lineHeight: 22, textAlign: 'center', marginTop: 10, marginBottom: 20 }, warningConfirm: { width: '100%', height: 50, borderRadius: 14, backgroundColor: '#D4772B', alignItems: 'center', justifyContent: 'center' }, warningConfirmText: { color: '#FFF', fontWeight: '900' }, warningCancel: { paddingVertical: 14 }, warningCancelText: { color: '#66766E', fontWeight: '800' },
 });

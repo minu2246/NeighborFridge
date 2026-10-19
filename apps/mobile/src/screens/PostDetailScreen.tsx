@@ -10,12 +10,12 @@ export function PostDetailScreen({ post, onBack, onChat, onStatusChange }: { pos
     <ScrollView contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
       <Pressable onPress={onBack} style={styles.back}><Text style={styles.backText}>‹  목록으로</Text></Pressable>
       <View style={[styles.photo, { backgroundColor: post.color }]}>{post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={{ width: '100%', height: '100%', borderRadius: 25 }}/> : <Text style={styles.emoji}>{post.emoji}</Text>}<Text style={styles.dday}>{dDay}</Text></View>
-      <View style={styles.owner}><View style={styles.avatar}><Text>🙂</Text></View><View style={styles.ownerCopy}><Text style={styles.ownerName}>초록이웃</Text><Text style={styles.ownerMeta}>서울 중구 · 매너온도 48.5°</Text></View><Text style={styles.distance}>{post.distance}</Text></View>
+      <View style={styles.owner}><View style={styles.avatar}><Text>🙂</Text></View><View style={styles.ownerCopy}><Text style={styles.ownerName}>{post.authorName ?? '이웃'}</Text><Text style={styles.ownerMeta}>{post.isMine ? '내 게시물' : '같은 동네 이웃'}</Text></View><Text style={styles.distance}>{post.distance}</Text></View>
       <View style={styles.rule} />
       <View style={styles.titleRow}><Text style={styles.name}>{post.name}</Text><Text style={styles.type}>{post.type}</Text></View>
       <Text style={styles.title}>{post.title}</Text>
-      <Text style={styles.description}>장을 보고 요리한 뒤 조금 남았어요. 신선할 때 가까운 이웃과 나누고 싶습니다. 깨끗하게 보관 중이에요.</Text>
-      <View style={styles.info}><Info label="소비기한" value={dDay} /><Info label="거래 장소" value={post.place} /><Info label="보관 상태" value="냉장 보관" /></View>
+      {post.description ? <Text style={styles.description}>{post.description}</Text> : null}
+      <View style={styles.info}><Info label="소비기한" value={dDay} /><Info label="거래 장소" value={post.place} /></View>
       <View style={styles.safety}><Text style={styles.safetyTitle}>🛡️ 안전한 동네 거래</Text><Text style={styles.safetyText}>정확한 집 주소 대신 사람이 많은 공공장소에서 만나세요.</Text></View>
       {onStatusChange ? <View style={styles.manage}><Text style={styles.manageTitle}>내 게시물 거래 상태</Text><Text style={styles.manageText}>{post.status === 'RESERVED' ? '이 게시물은 현재 예약중입니다.' : '약속이 잡혔다면 다른 이웃에게 상태를 알려주세요.'}</Text>{error ? <Text style={styles.error}>{error}</Text> : null}<View style={styles.manageActions}>{post.status === 'RESERVED' ? <><Pressable disabled={saving} style={styles.secondary} onPress={() => void change('ACTIVE')}><Text style={styles.secondaryText}>예약 취소</Text></Pressable><Pressable disabled={saving} style={styles.complete} onPress={() => void change('COMPLETED')}><Text style={styles.completeText}>{saving ? '처리 중…' : '거래 완료'}</Text></Pressable></> : <Pressable disabled={saving} style={styles.reserve} onPress={() => void change('RESERVED')}>{saving ? <ActivityIndicator color="#FFF"/> : <Text style={styles.reserveText}>예약중으로 변경</Text>}</Pressable>}</View></View> : null}
     </ScrollView>

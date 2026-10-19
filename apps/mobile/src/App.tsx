@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { BackHandler, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { createPost, getHealth, getNeighborhood, listPosts, login, openChatRoom, register, saveNeighborhood, updatePostStatus, USE_LOCAL_STORE } from './api/client';
+import { createPost, getHealth, getNeighborhood, listPosts, login, logout, openChatRoom, register, restoreSession, saveNeighborhood, updatePostStatus, USE_LOCAL_STORE } from './api/client';
 import { demoPosts } from './data/demo';
 import { AddScreen } from './screens/AddScreen';
 import { ChatScreen } from './screens/ChatScreen';
@@ -27,7 +27,12 @@ export default function App() {
   const [neighborhood, setNeighborhood] = useState<Neighborhood | null>(null);
   const [locationChecked, setLocationChecked] = useState(false);
   const [mineOnly, setMineOnly] = useState(false);
+  const [nickname, setNickname] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(true);
   useEffect(() => { void getHealth().then(setOnline); }, []);
+  useEffect(() => {
+    void restoreSession().then((user) => { if (user) { setNickname(user.nickname); setAuthenticated(true); } }).finally(() => setRestoring(false));
+  }, []);
   useEffect(() => {
     if (Platform.OS !== 'android' || !authenticated) return;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -49,8 +54,13 @@ export default function App() {
     const saved = await saveNeighborhood(value).catch(() => value);
     setNeighborhood(saved);
   }
-  async function handleLogin(email: string, password: string) { await login(email, password); setAuthenticated(true); }
-  async function handleRegister(email: string, nickname: string, password: string) { await register(email, nickname, password); setAuthenticated(true); }
+  async function handleLogin(email: string, password: string) { const result = await login(email, password); setNickname(result.user.nickname); setAuthenticated(true); }
+  async function handleRegister(email: string, name: string, password: string) { const result = await register(email, name, password); setNickname(result.user.nickname); setAuthenticated(true); }
+  async function handleLogout() {
+    await logout();
+    setAuthenticated(false); setNickname(null); setNeighborhood(null); setLocationChecked(false);
+    setPosts(demoPosts); setSelectedPost(null); setChatTarget(undefined); setMineOnly(false); setTab('home');
+  }
   async function addPost(input: NewPostInput) {
     if (!neighborhood) throw new Error('동네를 먼저 인증해 주세요.');
     const saved = await createPost(input, neighborhood);
@@ -65,13 +75,14 @@ export default function App() {
     setPosts((current) => current.map((post) => post.id === updated.id ? updated : post));
     setSelectedPost(updated);
   }
+  if (restoring) return <SafeAreaView style={styles.outer}><View style={styles.phone} /></SafeAreaView>;
   if (!authenticated) return <SafeAreaView style={styles.outer}><View style={styles.phone}><AuthScreen onLogin={handleLogin} onRegister={handleRegister} onDemo={() => setAuthenticated(true)} /></View></SafeAreaView>;
   if (locationChecked && !neighborhood) return <SafeAreaView style={styles.outer}><View style={styles.phone}><LocationScreen onComplete={updateNeighborhood} /></View></SafeAreaView>;
   if (selectedPost) return <SafeAreaView style={styles.outer}><View style={styles.phone}><PostDetailScreen post={selectedPost} onBack={() => setSelectedPost(null)} onStatusChange={selectedPost.isMine ? changePostStatus : undefined} onChat={selectedPost.isMine && !USE_LOCAL_STORE ? undefined : async () => { setChatTarget(await openChatRoom(selectedPost)); setSelectedPost(null); setTab('chat'); }} /></View></SafeAreaView>;
   return <SafeAreaView style={styles.outer}><StatusBar style="dark" />
     <View style={styles.phone}>
       <View style={[styles.connection, online ? styles.online : styles.demo]}><Text style={styles.connectionText}>{online ? '● API 연결됨' : '● 데모 데이터'}</Text></View>
-      <View style={styles.content}>{tab === 'home' ? <HomeScreen posts={posts} neighborhood={neighborhood} mineOnly={mineOnly} onShowAll={() => setMineOnly(false)} onNeighborhoodChange={updateNeighborhood} onSelectPost={setSelectedPost} /> : tab === 'add' ? <AddScreen onSubmit={addPost} /> : tab === 'chat' ? <ChatScreen startTarget={chatTarget} /> : <ProfileScreen neighborhood={neighborhood} postCount={posts.filter((post) => post.isMine).length} onMyPosts={() => { setMineOnly(true); setTab('home'); }} onResetLocation={() => setNeighborhood(null)} />}</View>
+      <View style={styles.content}>{tab === 'home' ? <HomeScreen posts={posts} neighborhood={neighborhood} mineOnly={mineOnly} onShowAll={() => setMineOnly(false)} onNeighborhoodChange={updateNeighborhood} onSelectPost={setSelectedPost} /> : tab === 'add' ? <AddScreen onSubmit={addPost} /> : tab === 'chat' ? <ChatScreen startTarget={chatTarget} /> : <ProfileScreen nickname={nickname} onLogout={() => void handleLogout()} neighborhood={neighborhood} postCount={posts.filter((post) => post.isMine).length} onMyPosts={() => { setMineOnly(true); setTab('home'); }} onResetLocation={() => setNeighborhood(null)} />}</View>
       <View style={styles.nav}>{tabs.map((item) => <Pressable key={item.key} onPress={() => { if (item.key === 'home') setMineOnly(false); setTab(item.key); }} style={styles.navItem}>
         <Text style={[styles.navIcon, tab === item.key && styles.active]}>{item.icon}</Text><Text style={[styles.navLabel, tab === item.key && styles.active]}>{item.label}</Text>
       </Pressable>)}</View>

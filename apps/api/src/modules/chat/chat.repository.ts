@@ -6,6 +6,7 @@ import { ChatMessageRecord, ChatRoomRecord } from './chat.types';
 type RoomRow = {
   id: string; post_id: string; post_title: string; owner_id: string;
   requester_id: string; meet_at: string | null; meet_place: string | null; created_at: Date;
+  partner_nickname?: string;
 };
 type MessageRow = {
   id: string; room_id: string; sender_id: string; message: string;
@@ -36,8 +37,10 @@ export class ChatRepository {
 
   async listRooms(userId: string): Promise<ChatRoomRecord[]> {
     const result = await this.pool.query<RoomRow>(
-      `SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, to_char(r.meet_at, 'YYYY-MM-DD"T"HH24:MI') AS meet_at, r.meet_place, r.created_at
+      `SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, to_char(r.meet_at, 'YYYY-MM-DD"T"HH24:MI') AS meet_at, r.meet_place, r.created_at,
+         partner.nickname AS partner_nickname
        FROM chat_rooms r JOIN posts p ON p.id = r.post_id
+       JOIN users partner ON partner.id = CASE WHEN r.owner_id = $1 THEN r.requester_id ELSE r.owner_id END
        WHERE r.owner_id = $1 OR r.requester_id = $1
        ORDER BY r.created_at DESC`,
       [userId],
@@ -84,7 +87,7 @@ export class ChatRepository {
     return {
       id: row.id, postId: row.post_id, postTitle: row.post_title,
       ownerId: row.owner_id, requesterId: row.requester_id,
-      meetAt: row.meet_at, meetPlace: row.meet_place,
+      meetAt: row.meet_at, meetPlace: row.meet_place, partnerNickname: row.partner_nickname,
       createdAt: row.created_at.toISOString(),
     };
   }
