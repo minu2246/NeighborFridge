@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { CreatePostDto } from './dto/create-post.dto';
 import { FindNearbyPostsDto } from './dto/find-nearby-posts.dto';
-import { PostRecord } from './post.types';
+import { PendingReview, PostRecord, ReviewRating } from './post.types';
 import { PostsRepository } from './posts.repository';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { UpdatePostStatusDto } from './dto/update-post-status.dto';
@@ -68,13 +68,29 @@ export class PostsService {
       EXPIRED: [],
       DELETED: [],
     };
+    if (input.completedWith) {
+      if (input.status !== 'COMPLETED') throw new BadRequestException('거래 상대는 거래 완료 시에만 지정할 수 있습니다.');
+      if (!(await this.postsRepository.hasChatWith(id, input.completedWith))) {
+        throw new BadRequestException('이 게시물로 채팅한 이웃만 거래 상대로 지정할 수 있습니다.');
+      }
+    }
     if (post.status === input.status) return post;
     if (!allowedTransitions[post.status].includes(input.status)) {
       throw new ConflictException(`${post.status} 상태에서 ${input.status} 상태로 변경할 수 없습니다.`);
     }
-    const updated = await this.postsRepository.updateStatus(id, input.status);
+    const updated = await this.postsRepository.updateStatus(id, input.status, input.completedWith);
     if (!updated) throw new ConflictException('게시물 상태가 변경되어 처리할 수 없습니다.');
     return updated;
+  }
+
+  listPendingReviews(userId: string): Promise<PendingReview[]> {
+    return this.postsRepository.listPendingReviews(userId);
+  }
+
+  async createReview(userId: string, postId: string, rating: ReviewRating): Promise<void> {
+    if (!(await this.postsRepository.createReview(postId, userId, rating))) {
+      throw new BadRequestException('후기를 남길 수 없는 거래이거나 이미 후기를 남겼습니다.');
+    }
   }
 
   async delete(userId: string, id: string): Promise<void> {

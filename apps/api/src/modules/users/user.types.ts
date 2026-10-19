@@ -10,6 +10,14 @@ export interface UserRecord {
   createdAt: string;
 }
 
+export interface UserStats {
+  completedPosts: number;
+  activePosts: number;
+  chatPartners: number;
+  mannerTemperature: number;
+  reviewCount: number;
+}
+
 export interface UserWithPassword extends UserRecord {
   passwordHash: string | null;
 }

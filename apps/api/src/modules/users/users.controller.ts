@@ -3,7 +3,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AuthenticatedUser } from '../auth/jwt.types';
 import { UpdateLocationDto } from './dto/update-location.dto';
-import { UserRecord } from './user.types';
+import { UserRecord, UserStats } from './user.types';
 import { UsersService } from './users.service';
 
 @Controller('users/me')
@@ -14,6 +14,11 @@ export class UsersController {
   @Get()
   getMe(@CurrentUser() user: AuthenticatedUser): Promise<UserRecord> {
     return this.usersService.getMe(user.id);
+  }
+
+  @Get('stats')
+  getStats(@CurrentUser() user: AuthenticatedUser): Promise<UserStats> {
+    return this.usersService.getMyStats(user.id);
   }
 
   @Patch('location')

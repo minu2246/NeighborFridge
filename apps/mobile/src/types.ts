@@ -59,3 +59,29 @@ export interface Appointment {
   place: string;
   updatedAt?: string;
 }
+
+export interface UserStats {
+  completedPosts: number;
+  activePosts: number;
+  chatPartners: number;
+  mannerTemperature: number;
+  reviewCount: number;
+}
+
+export interface PendingReview {
+  postId: string;
+  itemName: string;
+  partnerNickname: string;
+}
+
+export type ReviewRating = -1 | 1 | 2;
+
+// 포장지 OCR 결과. allergenLabelFound가 false면 "없음"이 아니라 "확인 불가".
+export interface LabelInfo {
+  itemName?: string;
+  expiryDate?: string;
+  weightText?: string;
+  weightGrams?: number;
+  allergens: string[];
+  allergenLabelFound: boolean;
+}

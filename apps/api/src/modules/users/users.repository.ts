@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Pool } from 'pg';
 import { DATABASE_POOL } from '../../database/database.module';
-import { UserRecord, UserWithPassword } from './user.types';
+import { UserRecord, UserStats, UserWithPassword } from './user.types';
 
 type UserRow = {
   id: string;
@@ -43,6 +43,22 @@ export class UsersRepository {
       [email],
     );
     return result.rows[0] ? this.mapRowWithPassword(result.rows[0]) : null;
+  }
+
+  async getStats(id: string): Promise<UserStats> {
+    const result = await this.pool.query<UserStats>(
+      `SELECT
+         (SELECT COUNT(*) FROM posts WHERE user_id = $1 AND status = 'COMPLETED')::int AS "completedPosts",
+         (SELECT COUNT(*) FROM posts WHERE user_id = $1 AND status IN ('ACTIVE', 'RESERVED'))::int AS "activePosts",
+         (SELECT COUNT(DISTINCT CASE WHEN owner_id = $1 THEN requester_id ELSE owner_id END)
+            FROM chat_rooms WHERE owner_id = $1 OR requester_id = $1)::int AS "chatPartners",
+         -- 매너 온도: 36.5°C에서 시작, 최고예요 +0.2 / 좋아요 +0.1 / 별로예요 -0.3, 0~99 범위
+         ROUND(LEAST(99, GREATEST(0, 36.5 + COALESCE((SELECT SUM(CASE rating WHEN 2 THEN 0.2 WHEN 1 THEN 0.1 ELSE -0.3 END)
+            FROM reviews WHERE reviewee_id = $1), 0)))::numeric, 1)::float AS "mannerTemperature",
+         (SELECT COUNT(*) FROM reviews WHERE reviewee_id = $1)::int AS "reviewCount"`,
+      [id],
+    );
+    return result.rows[0];
   }
 
   async findById(id: string): Promise<UserRecord | null> {

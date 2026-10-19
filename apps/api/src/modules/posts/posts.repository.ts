@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 import { DATABASE_POOL } from '../../database/database.module';
 import { CreatePostDto } from './dto/create-post.dto';
 import { FindNearbyPostsDto } from './dto/find-nearby-posts.dto';
-import { MutablePostStatus, PostRecord } from './post.types';
+import { MutablePostStatus, PendingReview, PostRecord, ReviewRating } from './post.types';
 import { UpdatePostDto } from './dto/update-post.dto';
 
 type DbPostRow = {
@@ -128,16 +128,48 @@ export class PostsRepository {
     return result.rows[0] ? this.mapRow(result.rows[0]) : null;
   }
 
-  async updateStatus(id: string, status: MutablePostStatus): Promise<PostRecord | null> {
+  async updateStatus(id: string, status: MutablePostStatus, completedWith?: string): Promise<PostRecord | null> {
     const result = await this.pool.query<DbPostRow>(
       `UPDATE posts
-       SET status = $2::post_status, updated_at = NOW()
+       SET status = $2::post_status, completed_with = COALESCE($3, completed_with), updated_at = NOW()
        WHERE id = $1 AND status NOT IN ('EXPIRED', 'DELETED')
        RETURNING id, user_id, title, description, item_name, image_urls,
          expiry_date::text, trade_type, status, place_name, created_at`,
-      [id, status],
+      [id, status, completedWith ?? null],
     );
     return result.rows[0] ? this.mapRow(result.rows[0]) : null;
+  }
+
+  async hasChatWith(postId: string, requesterId: string): Promise<boolean> {
+    const result = await this.pool.query('SELECT 1 FROM chat_rooms WHERE post_id = $1 AND requester_id = $2 LIMIT 1', [postId, requesterId]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // 후기 대상: 거래 상대가 지정된 완료 게시물 중, 내가(작성자 또는 거래 상대) 아직 후기를 남기지 않은 것
+  async listPendingReviews(userId: string): Promise<PendingReview[]> {
+    const result = await this.pool.query<PendingReview>(
+      `SELECT p.id AS "postId", p.item_name AS "itemName", partner.nickname AS "partnerNickname"
+       FROM posts p
+       JOIN users partner ON partner.id = CASE WHEN p.user_id = $1 THEN p.completed_with ELSE p.user_id END
+       WHERE p.status = 'COMPLETED' AND p.completed_with IS NOT NULL AND $1 IN (p.user_id, p.completed_with)
+         AND NOT EXISTS (SELECT 1 FROM reviews r WHERE r.post_id = p.id AND r.reviewer_id = $1)
+       ORDER BY p.updated_at DESC`,
+      [userId],
+    );
+    return result.rows;
+  }
+
+  // 거래 당사자만, 게시물당 한 번. 조건이 안 맞으면 false.
+  async createReview(postId: string, reviewerId: string, rating: ReviewRating): Promise<boolean> {
+    const result = await this.pool.query(
+      `INSERT INTO reviews (post_id, reviewer_id, reviewee_id, rating)
+       SELECT p.id, $2, CASE WHEN p.user_id = $2 THEN p.completed_with ELSE p.user_id END, $3
+       FROM posts p
+       WHERE p.id = $1 AND p.status = 'COMPLETED' AND p.completed_with IS NOT NULL AND $2 IN (p.user_id, p.completed_with)
+       ON CONFLICT (post_id, reviewer_id) DO NOTHING`,
+      [postId, reviewerId, rating],
+    );
+    return (result.rowCount ?? 0) > 0;
   }
 
   async softDelete(id: string): Promise<boolean> {

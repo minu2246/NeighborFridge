@@ -9,6 +9,7 @@ import { UsersModule } from './modules/users/users.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { DeveloperModule } from './modules/developer/developer.module';
 import { LocalStoreModule } from './modules/local-store/local-store.module';
+import { OcrModule } from './modules/ocr/ocr.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { LocalStoreModule } from './modules/local-store/local-store.module';
     ChatModule,
     DeveloperModule,
     LocalStoreModule,
+    OcrModule,
   ],
 })
 export class AppModule {}

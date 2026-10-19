@@ -1,4 +1,4 @@
-import { Appointment, ChatMessage, ChatTarget, FoodPost, Neighborhood, NewPostInput, TradeType } from '../types';
+import { Appointment, ChatMessage, ChatTarget, FoodPost, Neighborhood, LabelInfo, NewPostInput, PendingReview, ReviewRating, TradeType, UserStats } from '../types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api';
 const SERVER_URL = API_URL.replace(/\/api\/?$/, '');
@@ -115,8 +115,25 @@ export async function createPost(input: NewPostInput, neighborhood: Neighborhood
   return { ...toFoodPost(await request<ApiPost>('/posts', { method: 'POST', body: JSON.stringify(body) })), authorName: session?.nickname };
 }
 
-export async function updatePostStatus(postId: string, status: 'ACTIVE' | 'RESERVED' | 'COMPLETED'): Promise<void> {
-  await request(`/${USE_LOCAL_STORE ? 'local/posts' : 'posts'}/${encodeURIComponent(postId)}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+// completedWith: 거래 완료 시 거래 상대 userId (정식 모드 전용)
+export async function updatePostStatus(postId: string, status: 'ACTIVE' | 'RESERVED' | 'COMPLETED', completedWith?: string): Promise<void> {
+  await request(`/${USE_LOCAL_STORE ? 'local/posts' : 'posts'}/${encodeURIComponent(postId)}/status`, { method: 'PATCH', body: JSON.stringify(completedWith ? { status, completedWith } : { status }) });
+}
+
+// 내 게시물로 채팅한 이웃 = 거래 상대 후보. 로컬 모드는 빈 목록.
+export async function listPostChatPartners(postId: string): Promise<{ userId: string; nickname: string }[]> {
+  if (USE_LOCAL_STORE) return [];
+  const rooms = await request<{ postId: string; ownerId: string; requesterId: string; partnerNickname?: string }[]>('/chats/rooms', { method: 'GET' });
+  return rooms.filter((room) => room.postId === postId && room.ownerId === session?.userId).map((room) => ({ userId: room.requesterId, nickname: room.partnerNickname ?? '이웃' }));
+}
+
+export async function listPendingReviews(): Promise<PendingReview[]> {
+  if (USE_LOCAL_STORE || !session) return [];
+  return request('/reviews/pending', { method: 'GET' });
+}
+
+export async function submitReview(postId: string, rating: ReviewRating): Promise<void> {
+  await request('/reviews', { method: 'POST', body: JSON.stringify({ postId, rating }) });
 }
 
 export async function getNeighborhood(): Promise<Neighborhood | null> {
@@ -124,6 +141,12 @@ export async function getNeighborhood(): Promise<Neighborhood | null> {
   const me = await request<{ neighborhoodName: string | null; latitude: number | null; longitude: number | null; radiusKm: number }>('/users/me', { method: 'GET' });
   return me.neighborhoodName && me.latitude !== null && me.longitude !== null
     ? { name: me.neighborhoodName, latitude: me.latitude, longitude: me.longitude, radiusKm: me.radiusKm as Neighborhood['radiusKm'] } : null;
+}
+
+// 정식 모드 전용. 로컬 모드·데모 진입(토큰 없음)은 null.
+export async function getMyStats(): Promise<UserStats | null> {
+  if (USE_LOCAL_STORE || !session) return null;
+  return request('/users/me/stats', { method: 'GET' });
 }
 
 export async function saveNeighborhood(value: Neighborhood): Promise<Neighborhood> {
@@ -165,6 +188,11 @@ export function getAppointment(roomId: string): Promise<Appointment | null> {
 export async function saveAppointment(roomId: string, meetAt: string, place: string): Promise<{ appointment: Appointment; message: ChatMessage }> {
   const result = await request<{ appointment: Appointment; message: ChatMessage }>(`${roomPath(roomId)}/appointment`, { method: 'PUT', body: JSON.stringify(USE_LOCAL_STORE ? { sender: 'me', meetAt, place } : { meetAt, place }) });
   return { appointment: result.appointment, message: toChatMessage(result.message) };
+}
+
+// 포장지 사진 OCR(무료, 서버의 tesseract.js). 정식 모드·로그인 필요.
+export function readLabel(base64: string, mimeType: string): Promise<LabelInfo> {
+  return request('/ocr/label', { method: 'POST', body: JSON.stringify({ base64, mimeType }) });
 }
 
 // ponytail: 정식 모드도 로컬 디스크 업로드(/local/uploads, 인증 없음) 사용. 외부 배포 전 S3 호환 저장소 + 인증 업로드로 교체.

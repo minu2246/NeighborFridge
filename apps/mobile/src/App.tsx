@@ -67,9 +67,9 @@ export default function App() {
     setPosts((current) => [saved, ...current]);
     setTab('home');
   }
-  async function changePostStatus(status: 'ACTIVE' | 'RESERVED' | 'COMPLETED') {
+  async function changePostStatus(status: 'ACTIVE' | 'RESERVED' | 'COMPLETED', completedWith?: string) {
     if (!selectedPost) return;
-    await updatePostStatus(selectedPost.id, status);
+    await updatePostStatus(selectedPost.id, status, completedWith);
     const updated = { ...selectedPost, status };
     if (status === 'COMPLETED') { setPosts((current) => current.filter((post) => post.id !== updated.id)); setSelectedPost(null); return; }
     setPosts((current) => current.map((post) => post.id === updated.id ? updated : post));

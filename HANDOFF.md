@@ -14,12 +14,13 @@
   5. 게시물 단위 1:1 실시간 채팅
 - 이후 확장: 사진 기반 자동 등록(소비기한·품목·알레르기 성분 → 게시물 자동 작성, 7절 참고), 레시피 추천, 탄소 절감량·매너 등급
 
-## 2. Git 상태 (2026-10-03 기준)
+## 2. Git 상태 (2026-10-20 기준)
 - 브랜치: `main` (`origin/main`과 동기화), stash 없음
 - 원격: `https://github.com/minu2246/NeighborFridge.git`
-- 기능 커밋 `ec2b485 feat: connect mobile to main API and add trade appointments` (push 완료). 그 뒤 이 HANDOFF 갱신 커밋이 이어짐
+- 2026-10-20 커밋·push: `d8e9c0d`(약속 시간 검증·start:api 수정), `0042ae7`(로그인 유지·닉네임·설명), 그 뒤 프로필 통계·후기/매너 온도·사진 OCR 커밋(이 HANDOFF 포함). 미커밋 변경 없음
 - 미추적(의도적으로 커밋 제외): `graphify-out/`(자동 생성물, 현재 코드 기준으로 오래됨), `team-reference/`(팀원 원본 자료)
-- 최근 흐름: Expo 모바일 MVP → 로컬 SQLite 저장 → 휴대폰 미리보기 → 사진 업로드 → 만료 처리 → 필터·정렬 → 소비기한 달력·거래 상태 → 상태 영속화·내 게시물
+- 최근 흐름(10/20): Docker 정식 DB E2E → 버그 2건 수정 → 로그인 유지·닉네임 → 프로필 통계 → 거래 후기·매너 온도 → 무료 OCR 자동 작성
+- 이전 흐름: Expo 모바일 MVP → 로컬 SQLite 저장 → 휴대폰 미리보기 → 사진 업로드 → 만료 처리 → 필터·정렬 → 소비기한 달력·거래 상태 → 상태 영속화·내 게시물
 
 ## 3. 프로젝트 구성
 npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile` 두 개.
@@ -50,9 +51,13 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
   - 1분 주기 만료 처리, 컬럼 존재 확인 후 `ALTER`로 스키마 보강
 - 정적 서빙: `/mobile`·`/` → `apps/api/public/mobile`(웹 export 결과), `/uploads` → `storage/uploads`
 - 개발 현황 페이지: `GET /api` (developer 모듈)
+- 사용자 통계: `GET /users/me/stats` → 나눔 완료·나눔 중·대화한 이웃·매너 온도·받은 후기 수
+- 거래 후기: 완료 시 거래 상대 지정(`completedWith`), `GET /reviews/pending`, `POST /reviews` (매너 온도 36.5°C 시작, +0.2/+0.1/-0.3)
+- 포장지 OCR: `POST /ocr/label` (tesseract.js 무료, 규칙 해석 `modules/ocr/label-parser.ts`)
 
 ### Mobile (`apps/mobile`)
 - 화면: 인증(데모 진입 포함), 위치(동네 인증/직접 입력), 홈(필터·정렬·내 게시물), 등록(사진 선택, 소비기한 `DatePickerModal`), 게시물 상세(작성자 상태 변경), 채팅(거래 약속 배너·입력 폼), 프로필
+- 로그인 유지(앱 `expo-secure-store`, 웹 `localStorage`)·로그아웃, 프로필 통계·매너 온도·후기 남기기, 거래 완료 시 거래 상대 선택, 등록 화면 "포장지 사진으로 자동 작성"
 - Android 뒤로가기 처리 (`BackHandler`)
 - API 연결 표시: 연결 시 "API 연결됨", 실패 시 데모 데이터(`data/demo.ts`)
 - API 호출은 `api/client.ts`에서 모드 분기: 기본은 정식 API(JWT Bearer), `EXPO_PUBLIC_USE_LOCAL_STORE=true`이면 `/api/local/*`
@@ -77,7 +82,7 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 - 2026-10-02 (Claude Code): DB 환경은 **Docker Desktop으로 결정**(사양 확인: RAM 31GB, 가상화 켜짐, WSL2 미설치로 보임). 사용자가 직접 설치 예정(`winget install Docker.DockerDesktop`, 재부팅 필요할 수 있음). Docker 관련 외부 자원은 설치 전에 `EXTERNAL_RESOURCES.json`·`FILE_MANAGEMENT.md`에 기록
 - 2026-10-02: 사진 기반 게시물 자동 작성(소비기한·품목·알레르기 성분) 요구사항·설계 메모를 7절과 `PROJECT_BRIEF.md`에 기록 (미구현, AI 서비스·API 키 미정)
 - 2026-10-03 (Claude Code): `README.md` 재작성 (개발 배경·목적·목표, 기능 진행 현황표, 기술 스택, 구조, 실행 방법, 문서 링크). 개발 배경의 1인 가구 문구는 Claude가 작성한 서술이라 사용자 검토 필요
-- 2026-10-20 (Claude Code): **정식 모드 E2E 검증 완료 (미커밋)**
+- 2026-10-20 (Claude Code): **정식 모드 E2E 검증 완료**
   - 환경: Docker Desktop 4.95.0 + WSL 3.0.3.0 설치·재부팅 완료, `docker compose up -d`로 PostGIS 3.5/Redis 기동, `001_schema.sql`로 테이블·신규 컬럼(`neighborhood_name`, `search_radius_km`, `meet_at`, `meet_place`) 생성 확인. 루트 `.env` 생성(Git 제외, `JWT_SECRET` 무작위)
   - **버그 수정 1**: `npm run start:api`가 `tsx watch`로 실행돼 Nest DI 실패(`Cannot read properties of undefined (reading 'getOrThrow')`, esbuild가 데코레이터 메타데이터 미생성) + `apps/api`에서 실행돼 루트 `.env` 미인식 → 루트 `start:api`를 "API 빌드 후 루트에서 `node apps/api/dist/main.js`"로, `apps/api`의 `start:dev`도 `tsc` 빌드 후 실행으로 변경. 자동 재시작(watch)은 없음. `tsx` devDependency는 이제 미사용(제거 안 함)
   - **버그 수정 2**: 약속 시간 정규식의 역슬래시 누락(10/2 작업 시 스크립트로 파일을 쓰며 발생) → 정식 API `SaveAppointmentDto`가 모든 시간을 거부, 앱 `ChatScreen`도 모든 시간을 "형식 오류" 처리하던 문제 수정. 재발 방지 테스트 `apps/api/test/save-appointment.dto.spec.ts` 추가
@@ -93,16 +98,39 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
   - 검증: 테스트 18개·빌드·타입체크 통과, 기존 E2E 12단계 + 신규 E2E 9단계(세션 저장/복원/로그아웃/위조 토큰 거부, 설명, 작성자·상대 닉네임) 통과, 웹 번들에 새 코드 반영 확인
   - 참고: Expo Web을 `CI=1`로 띄우면 Metro가 파일 변경을 감지하지 않아 옛 코드가 계속 나옴 → `CI` 없이 실행
   - 정리: `npx expo install`을 `apps/mobile`에서 실행해 생긴 `apps/mobile/storage/cache/npm`(npm 캐시 43MB)은 사용자 승인 후 삭제. 이후 npm/expo 명령은 루트에서 실행할 것
+- 2026-10-20 (Claude Code): **프로필 통계 실제 데이터화**
+  - `GET /users/me/stats` → `{ completedPosts, activePosts, chatPartners }` (거래 완료 게시물 수, ACTIVE·RESERVED 게시물 수, 채팅한 서로 다른 이웃 수)
+  - 프로필 통계를 "나눔 완료 / 나눔 중 / 대화한 이웃"으로 변경, 화면 열 때마다 조회. 로컬 모드·데모 진입은 "-"
+  - 결정: 기존 "탄소 절감 3.2kg"·"매너 온도 48.5°"는 근거 데이터(식재료 무게, 거래 후기)가 없어 실제 값으로 계산 불가 → 지표 교체. 되살리려면 등록 시 무게 입력, 거래 후기 기능이 먼저 필요
+  - 검증: 테스트 18개·빌드·타입체크 통과, 통계 E2E 5단계(0 초기값, 상태별 집계, 같은 이웃 중복 제거, 양쪽 시점, 로그아웃 시 null) + 기존 E2E 2종 통과
+- 2026-10-20 (Claude Code): **거래 후기·매너 온도**
+  - 사용자 요청: 당근마켓 매너온도와 비슷하게. 공개된 방식(36.5°C 시작, 거래 후기·매너 평가로 증감, 상한 99°C)을 참고했고 정확한 당근 계산식은 비공개라 자체 규칙 사용
+  - 규칙(기본값, `users.repository.ts` `getStats` SQL 한 곳): 36.5°C 시작, 최고예요 +0.2 / 좋아요 +0.1 / 별로예요 -0.3, 0~99 범위, 소수 첫째 자리
+  - DB: `posts.completed_with`(거래 상대), `reviews` 테이블(게시물·작성자별 1회, rating -1/1/2) — `005_add_reviews.sql` + `001_schema.sql` 끝에 동일 내용. 개발 DB에는 005 적용 완료
+  - API: `PATCH /posts/:id/status`에 선택 `completedWith`(완료 시에만, 그 게시물로 채팅한 이웃만 허용), `GET /reviews/pending`, `POST /reviews {postId, rating}`(거래 당사자만, 1회), 통계에 `mannerTemperature`·`reviewCount`
+  - Mobile: 게시물 상세 "거래 완료" → 채팅한 이웃이 있으면 "누구와 거래했나요?" 선택(또는 "앱 밖에서 거래했어요"), 프로필에 매너 온도 막대·얼굴 아이콘·받은 후기 수, "후기 남길 거래" 섹션(최고예요/좋아요/별로예요). 프로필 화면 스크롤 가능하게 변경
+  - 검증: 테스트 19개(거래 상대 검증 테스트 추가)·빌드·타입체크 통과, 후기 E2E 13단계(후보 목록, 비채팅 상대 거부, 앱 밖 거래 후기 불가, 중복·제3자 후기 거부, 양쪽 온도 계산 36.4/36.8/36.5) + 기존 E2E 3종 통과, 웹 번들 반영 확인
+  - 미구현: 선택형 칭찬 항목("시간 약속을 잘 지켜요" 등), 받은 후기 목록 보기, 후기 알림, 로컬 모드 지원
+- 2026-10-20 (Claude Code): **포장지 사진 자동 작성 — 무료 OCR**
+  - 사용자 결정: 비용이 드는 방식(유료 AI API·유료 OCR)은 사용하지 않음 → 오픈소스 `tesseract.js`(서버, 한국어+영어, 키·계정 불필요) + 규칙 기반 해석
+  - 언어 데이터(kor/eng traineddata)는 첫 실행 시 CDN에서 무료 다운로드 → `storage/cache/tesseract/`(Git 제외, 정리 스크립트 대상)
+  - API: `POST /ocr/label {base64, mimeType}`(로그인 필요, 저장 안 함) → `{ itemName?, expiryDate?, weightText?, weightGrams?, allergens[], allergenLabelFound }`. 워커 1개 재사용
+  - 해석 규칙(`apps/api/src/modules/ocr/label-parser.ts`, 순수 함수): 상품명은 "제품명/품명/상품명" 줄만, 소비기한은 키워드 줄(다음 줄 포함) 우선·제조일 줄 제외·없으면 가장 늦은 날짜·불가능한 날짜 제거, 중량은 내용량 줄 우선·없으면 최댓값·g→9 OCR 오인식 보정(내용량 줄에 단위 없을 때만), 알레르기는 식약처 표시 대상 19종 + 표현 사전·토큰 정확 일치(밀봉/맛있게 오탐 방지)·조사 제거. 표시 문구가 없으면 `allergenLabelFound=false` → "없음"이 아니라 "확인 불가"
+  - Mobile: 등록 화면에서 사진 선택 시 "📷 포장지 사진으로 자동 작성" 버튼(정식 모드). 비어 있는 칸만 채우고, 내용량·알레르기는 설명란에 추가, "자동 입력됨 — 포장지와 꼭 비교해 확인해 주세요" 안내와 항목별 결과(찾지 못함/확인 불가 포함) 표시
+  - 검증: 해석 규칙 테스트 7개(총 26개) 통과, 실제 OCR E2E — 생성한 두부 라벨(PNG)과 기울어지고 작은 글씨의 저화질 식빵 라벨(JPEG) 모두 상품명·소비기한·중량·알레르기 정확, 응답 약 0.2~0.3초(워커 준비 후). 기존 E2E 4종 통과
+  - 테스트 사진: `storage/downloads/ocr-samples/`(Git 제외). 실제 휴대폰 촬영 사진(반사·굴곡·조명)으로는 미검증
+  - 정리: 테스트를 `apps/api`에서 실행해 생긴 `apps/api/storage/`(npm 로그 16KB)는 사용자 승인 후 삭제. **npm/npx/jest 명령은 항상 루트에서 실행**(`.npmrc` 캐시 경로가 상대경로라 하위 폴더에서 실행하면 그 아래 `storage/`가 생김)
+  - 한계: 구조화 저장 없음(내용량·알레르기는 설명 텍스트로만 저장 → 탄소 절감 계산하려면 `posts`에 무게 컬럼 필요), 로컬 모드 미지원, 이미지 전처리(대비·회전 보정) 없음
 - **다음 작업**
   1. 정식 모드 남은 구멍 정리(아래 7절)
-  2. 사진 기반 자동 작성 기능 (AI 서비스·API 키 사용자 결정 필요)
+  2. 사진 자동 작성: 실제 휴대폰 사진으로 인식률 확인 후 규칙 보강
   3. 기능 완성 후 외부 배포
 
-## 6. 테스트·빌드 상태 (2026-10-02 재실행: test·build·mobile typecheck / 웹 export는 2026-10-01 결과)
+## 6. 테스트·빌드 상태 (2026-10-20 재실행: test·build·mobile typecheck / 웹 export는 2026-10-01 결과)
 | 명령 | 결과 |
 |---|---|
-| `npm test` (API Jest) | ✅ 7 suites / 18 tests 통과 (2026-10-20) |
-| 정식 모드 E2E (Docker PostGIS, 두 계정, `client.ts` 사용) | ✅ 12단계 통과 (2026-10-20) |
+| `npm test` (API Jest) | ✅ 8 suites / 26 tests 통과 (2026-10-20) |
+| 정식 모드 E2E (Docker PostGIS, `client.ts` 사용, 세션 임시 폴더의 스크립트) | ✅ 기본 12 + 프로필/로그인 9 + 통계 5 + 후기 13 + OCR 6단계 통과 (2026-10-20) |
 | `npm run build` (API `tsc`) | ✅ 오류 없음 → `apps/api/dist/` |
 | `npm run typecheck --workspace @neighbor-fridge/mobile` | ✅ 오류 없음 |
 | `scripts/build-mobile-web.ps1` (Expo web export) | ✅ 성공 → `apps/api/public/mobile/` (bundle 약 469KB). 첫 실행 시 Node 경고 1건 출력, 재실행 시 재현되지 않음 |
@@ -114,7 +142,7 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 - 정식 모드 남은 구멍 (2026-10-02 연동 후)
   - 사진 업로드가 정식 모드에서도 `/local/uploads`(인증 없음, 로컬 디스크) 사용 → 외부 배포 전 S3 호환 저장소 + 인증 업로드 필요
   - 채팅 목록에 마지막 메시지·안 읽은 수 미표시
-  - 프로필의 통계(나눔 완료 7, 탄소 절감 3.2kg, 매너 온도 48.5°)와 관심 목록·알림 설정·계정 메뉴는 고정 값/미구현
+  - 프로필의 관심 목록·알림 설정·계정 메뉴는 고정 값/미구현. 탄소 절감은 무게 입력 기능이 생기면 추가
   - 게시물 좌표 = 인증한 동네 좌표(게시물별 위치 지정 없음)
   - 데모 진입(로그인 없이)은 정식 모드에서 조회만 가능
 - 소셜 로그인 미구현 (이메일만)
@@ -125,14 +153,8 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 - DB 마이그레이션 실행 체계 없음 (아래 주의사항)
 - 모바일 테스트 부재
 - 거래 약속: 로컬·정식 모두 구현(2026-10-02). 약속 알림·상대방 수락 흐름 없음
-- **사진 기반 게시물 자동 작성 (사용자 요청 2026-10-02, 미구현)**
-  - 목표: 포장 사진에서 소비기한뿐 아니라 품목 정보(상품명·분류·보관 방법), 알레르기 유발 성분까지 추출해 등록 폼과 설명란을 자동으로 채움
-  - 방식 메모: 단순 OCR(글자 인식)만으로는 원재료명에서 알레르기 성분을 판단하기 어려움 → 이미지를 이해하는 멀티모달 AI 1회 호출로 구조화 JSON(`itemName, expiryDate, category, storage, allergens[], description`) 추출. 모델·비용은 구현 시 결정
-  - 호출 위치: 서버(API 키를 앱에 넣지 않음). 예: `POST /posts/analyze-image`(업로드된 사진 기준)
-  - 알레르기 기준: 식약처 알레르기 유발물질 표시 대상 목록으로 정규화. DB에 `posts.allergens`(배열) 등 컬럼 추가 필요
-  - 안전 원칙: 자동 입력값은 모두 사용자가 확인·수정 후 등록("자동 추출됨 — 확인해 주세요"). 성분을 못 찾으면 "알레르기 없음"이 아니라 "표시 확인 불가"로 표기. 소비기한 인식 실패 시 달력 직접 입력
-  - 한계: 직접 만든 음식(한끼 나눔)은 표시 사항이 없으므로 수동 입력
-  - 시점: 정식 API E2E 확인 후, 외부 배포 전 (기능 완성 단계에 포함)
+- 사진 자동 작성: 무료 OCR로 구현(2026-10-20, 5절). 남은 것 — 실제 휴대폰 사진 인식률 확인·규칙 보강, 무게·알레르기 구조화 저장(탄소 절감 계산용), 이미지 전처리. 유료 AI API는 사용자 결정으로 사용 안 함
+- 거래 후기 확장: 선택형 칭찬 항목, 받은 후기 목록, 후기 알림
 - 외부 배포 미진행: **앱 기능 구현 완료 후 시작하기로 결정(2026-10-02)**. 계획: 클라우드 Postgres(Neon/Supabase) → API 배포(Render/Railway/Fly.io) → 사진 저장소 분리(R2/Supabase Storage) → 모바일 API 주소 변경
 
 ## 8. 알려진 문제·주의사항

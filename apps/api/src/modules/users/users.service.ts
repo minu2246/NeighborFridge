@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { UpdateLocationDto } from './dto/update-location.dto';
-import { UserRecord } from './user.types';
+import { UserRecord, UserStats } from './user.types';
 import { UsersRepository } from './users.repository';
 
 @Injectable()
@@ -11,6 +11,10 @@ export class UsersService {
     const user = await this.usersRepository.findById(userId);
     if (!user) throw new NotFoundException('사용자를 찾을 수 없습니다.');
     return user;
+  }
+
+  getMyStats(userId: string): Promise<UserStats> {
+    return this.usersRepository.getStats(userId);
   }
 
   async updateMyLocation(userId: string, input: UpdateLocationDto): Promise<UserRecord> {

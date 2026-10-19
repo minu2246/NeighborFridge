@@ -12,6 +12,7 @@ describe('PostsService', () => {
     update: jest.fn(),
     updateStatus: jest.fn(),
     softDelete: jest.fn(),
+    hasChatWith: jest.fn(),
   } as unknown as PostsRepository;
   const service = new PostsService(repository);
 
@@ -61,5 +62,18 @@ describe('PostsService', () => {
     });
     await expect(service.updateStatus('owner-1', 'post-1', { status: 'ACTIVE' }))
       .rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('only accepts a trade partner who chatted about the post, on completion', async () => {
+    (repository.findById as jest.Mock).mockResolvedValue({ id: 'post-1', userId: 'owner-1', status: 'RESERVED' });
+    (repository.hasChatWith as jest.Mock).mockResolvedValue(false);
+    await expect(service.updateStatus('owner-1', 'post-1', { status: 'COMPLETED', completedWith: 'stranger' }))
+      .rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.updateStatus('owner-1', 'post-1', { status: 'ACTIVE', completedWith: 'stranger' }))
+      .rejects.toBeInstanceOf(BadRequestException);
+    (repository.hasChatWith as jest.Mock).mockResolvedValue(true);
+    (repository.updateStatus as jest.Mock).mockResolvedValue({ id: 'post-1', status: 'COMPLETED' });
+    await service.updateStatus('owner-1', 'post-1', { status: 'COMPLETED', completedWith: 'asker-1' });
+    expect(repository.updateStatus).toHaveBeenCalledWith('post-1', 'COMPLETED', 'asker-1');
   });
 });

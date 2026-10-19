@@ -4,10 +4,11 @@ import { ExpiryScheduler } from './expiry.scheduler';
 import { PostsController } from './posts.controller';
 import { PostsRepository } from './posts.repository';
 import { PostsService } from './posts.service';
+import { ReviewsController } from './reviews.controller';
 
 @Module({
   imports: [AuthModule],
-  controllers: [PostsController],
+  controllers: [PostsController, ReviewsController],
   providers: [PostsRepository, PostsService, ExpiryScheduler],
 })
 export class PostsModule {}
