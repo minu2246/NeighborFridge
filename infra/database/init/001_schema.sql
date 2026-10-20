@@ -97,3 +97,6 @@ CREATE TABLE IF NOT EXISTS reviews (
 );
 
 CREATE INDEX IF NOT EXISTS idx_reviews_reviewee ON reviews (reviewee_id);
+
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS weight_grams INTEGER CHECK (weight_grams > 0);
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS praises TEXT[] NOT NULL DEFAULT '{}';

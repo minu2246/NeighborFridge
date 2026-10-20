@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { CreatePostDto } from './dto/create-post.dto';
 import { FindNearbyPostsDto } from './dto/find-nearby-posts.dto';
-import { PendingReview, PostRecord, ReviewRating } from './post.types';
+import { NEGATIVE_PRAISES, PendingReview, POSITIVE_PRAISES, PostRecord, ReceivedReview, ReviewRating } from './post.types';
 import { PostsRepository } from './posts.repository';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { UpdatePostStatusDto } from './dto/update-post-status.dto';
@@ -87,8 +87,16 @@ export class PostsService {
     return this.postsRepository.listPendingReviews(userId);
   }
 
-  async createReview(userId: string, postId: string, rating: ReviewRating): Promise<void> {
-    if (!(await this.postsRepository.createReview(postId, userId, rating))) {
+  listReceivedReviews(userId: string): Promise<ReceivedReview[]> {
+    return this.postsRepository.listReceivedReviews(userId);
+  }
+
+  async createReview(userId: string, postId: string, rating: ReviewRating, praises: string[] = []): Promise<void> {
+    const allowed: readonly string[] = rating > 0 ? POSITIVE_PRAISES : NEGATIVE_PRAISES;
+    if (praises.some((praise) => !allowed.includes(praise))) {
+      throw new BadRequestException(rating > 0 ? '좋은 평가에는 칭찬 항목만 고를 수 있습니다.' : '별로예요 평가에는 아쉬운 점 항목만 고를 수 있습니다.');
+    }
+    if (!(await this.postsRepository.createReview(postId, userId, rating, [...new Set(praises)]))) {
       throw new BadRequestException('후기를 남길 수 없는 거래이거나 이미 후기를 남겼습니다.');
     }
   }

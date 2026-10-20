@@ -4,7 +4,14 @@ import { getAppointment, listChatRooms, listMessages, saveAppointment, sendMessa
 import { DatePickerModal } from '../components/DatePickerModal';
 import { Appointment, ChatMessage, ChatTarget } from '../types';
 
-const formatMeetAt = (meetAt: string) => `${Number(meetAt.slice(5, 7))}월 ${Number(meetAt.slice(8, 10))}일 ${meetAt.slice(11)}`;
+// 오늘이면 "오후 8:12", 어제면 "어제", 그 외 "10.18"
+function formatTime(iso: string): string {
+  const date = new Date(iso); const today = new Date();
+  const days = Math.round((new Date(today.toDateString()).getTime() - new Date(date.toDateString()).getTime()) / 86_400_000);
+  if (days === 0) return `${date.getHours() < 12 ? '오전' : '오후'} ${date.getHours() % 12 || 12}:${String(date.getMinutes()).padStart(2, '0')}`;
+  return days === 1 ? '어제' : `${date.getMonth() + 1}.${String(date.getDate()).padStart(2, '0')}`;
+}
+const formatMeetAt =(meetAt: string) => `${Number(meetAt.slice(5, 7))}월 ${Number(meetAt.slice(8, 10))}일 ${meetAt.slice(11)}`;
 
 const chats = [
   { id: '1', emoji: '🥬', name: '초록이웃', item: '청경채', message: '네, 시청역 4번 출구에서 만나요!', time: '오후 8:12', unread: 2 },
@@ -36,7 +43,13 @@ export function ChatScreen({ startTarget }: { startTarget?: ChatTarget }) {
     void getAppointment(selected.roomId).then(setAppointment).catch(() => setAppointment(null));
     return () => clearInterval(timer);
   }, [selected?.roomId]);
-  useEffect(() => { if (!selected && !USE_LOCAL_STORE) void listChatRooms().then(setRooms).catch(() => setRooms([])); }, [selected]);
+  useEffect(() => {
+    if (selected || USE_LOCAL_STORE) return;
+    const load = () => void listChatRooms().then(setRooms).catch(() => undefined);
+    load();
+    const timer = setInterval(load, 10_000); // 목록 화면에서도 새 메시지·안 읽은 수 갱신
+    return () => clearInterval(timer);
+  }, [selected]);
   useEffect(() => {
     if (Platform.OS !== 'android' || !selected) return;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => { setSelected(null); return true; });
@@ -81,7 +94,7 @@ export function ChatScreen({ startTarget }: { startTarget?: ChatTarget }) {
     <View style={styles.composer}><TextInput value={draft} onChangeText={setDraft} onSubmitEditing={() => void send()} returnKeyType="send" style={styles.composeInput} placeholder="따뜻한 메시지를 입력하세요" placeholderTextColor="#99A69F" /><Pressable style={[styles.send, (!draft.trim() || sending) && styles.sendDisabled]} onPress={() => void send()} disabled={!draft.trim() || sending}>{sending ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.sendText}>↑</Text>}</Pressable></View>
   </KeyboardAvoidingView>;
   return <ScrollView contentContainerStyle={styles.page}><Text style={styles.title}>이웃 대화</Text><Text style={styles.subtitle}>따뜻하고 안전하게 약속을 정해요.</Text>
-    {!USE_LOCAL_STORE ? (rooms.length === 0 ? <Text style={styles.empty}>아직 대화가 없어요. 게시물에서 채팅을 시작해 보세요.</Text> : rooms.map((room) => <Pressable style={styles.row} key={room.roomId} onPress={() => setSelected(room)}><View style={styles.avatar}><Text style={styles.emoji}>{room.emoji}</Text></View><View style={styles.copy}><Text style={styles.name}>{room.neighborName}</Text><Text style={styles.item}>{room.item}</Text></View></Pressable>)) : chats.map((chat) => <Pressable style={styles.row} key={chat.name} onPress={() => setSelected({ roomId: `demo-${chat.id}`, item: chat.item, emoji: chat.emoji, neighborName: chat.name })}><View style={styles.avatar}><Text style={styles.emoji}>{chat.emoji}</Text></View><View style={styles.copy}><View style={styles.top}><Text style={styles.name}>{chat.name}</Text><Text style={styles.time}>{chat.time}</Text></View><Text style={styles.item}>{chat.item}</Text><Text style={styles.message} numberOfLines={1}>{chat.message}</Text></View>{chat.unread > 0 && <Text style={styles.unread}>{chat.unread}</Text>}</Pressable>)}
+    {!USE_LOCAL_STORE ? (rooms.length === 0 ? <Text style={styles.empty}>아직 대화가 없어요. 게시물에서 채팅을 시작해 보세요.</Text> : rooms.map((room) => <Pressable style={styles.row} key={room.roomId} onPress={() => setSelected(room)}><View style={styles.avatar}><Text style={styles.emoji}>{room.emoji}</Text></View><View style={styles.copy}><View style={styles.top}><Text style={styles.name}>{room.neighborName}</Text>{room.lastMessageAt ? <Text style={styles.time}>{formatTime(room.lastMessageAt)}</Text> : null}</View><Text style={styles.item}>{room.item}</Text><Text style={styles.message} numberOfLines={1}>{room.lastMessage ?? '아직 메시지가 없어요'}</Text></View>{room.unread ? <Text style={styles.unread}>{room.unread}</Text> : null}</Pressable>)) : chats.map((chat) => <Pressable style={styles.row} key={chat.name} onPress={() => setSelected({ roomId: `demo-${chat.id}`, item: chat.item, emoji: chat.emoji, neighborName: chat.name })}><View style={styles.avatar}><Text style={styles.emoji}>{chat.emoji}</Text></View><View style={styles.copy}><View style={styles.top}><Text style={styles.name}>{chat.name}</Text><Text style={styles.time}>{chat.time}</Text></View><Text style={styles.item}>{chat.item}</Text><Text style={styles.message} numberOfLines={1}>{chat.message}</Text></View>{chat.unread > 0 && <Text style={styles.unread}>{chat.unread}</Text>}</Pressable>)}
     <View style={styles.safety}><Text style={styles.safetyTitle}>🛡️ 안전한 거래 약속</Text><Text style={styles.safetyText}>사람이 많은 공공장소에서 만나고, 집 주소는 공유하지 마세요.</Text></View>
   </ScrollView>;
 }

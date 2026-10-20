@@ -23,6 +23,7 @@ export class ChatService {
 
   async listMessages(userId: string, roomId: string, query: ListMessagesDto): Promise<ChatMessageRecord[]> {
     await this.requireParticipant(userId, roomId);
+    await this.repository.markRead(roomId, userId); // 메시지를 불러오면 = 채팅방을 보고 있으면 읽음
     return this.repository.listMessages(roomId, query.limit, query.offset);
   }
 

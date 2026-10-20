@@ -17,6 +17,7 @@ export interface FoodPost {
   isMine?: boolean;
   description?: string;
   authorName?: string;
+  weightGrams?: number;
 }
 
 export interface NewPostInput {
@@ -26,6 +27,7 @@ export interface NewPostInput {
   expiryDate: string;
   place: string;
   description?: string;
+  weightGrams?: number;
   photoBase64?: string;
   photoMimeType?: string;
 }
@@ -43,6 +45,9 @@ export interface ChatTarget {
   item: string;
   emoji: string;
   neighborName: string;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  unread?: number;
 }
 
 export interface ChatMessage {
@@ -66,6 +71,8 @@ export interface UserStats {
   chatPartners: number;
   mannerTemperature: number;
   reviewCount: number;
+  sharedKg: number;
+  carbonSavedKg: number;
 }
 
 export interface PendingReview {
@@ -75,6 +82,14 @@ export interface PendingReview {
 }
 
 export type ReviewRating = -1 | 1 | 2;
+
+export interface ReceivedReview {
+  rating: ReviewRating;
+  praises: string[];
+  itemName: string;
+  reviewerNickname: string;
+  createdAt: string;
+}
 
 // 포장지 OCR 결과. allergenLabelFound가 false면 "없음"이 아니라 "확인 불가".
 export interface LabelInfo {

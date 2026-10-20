@@ -1,4 +1,4 @@
-import { Appointment, ChatMessage, ChatTarget, FoodPost, Neighborhood, LabelInfo, NewPostInput, PendingReview, ReviewRating, TradeType, UserStats } from '../types';
+import { Appointment, ChatMessage, ChatTarget, FoodPost, Neighborhood, LabelInfo, NewPostInput, PendingReview, ReceivedReview, ReviewRating, TradeType, UserStats } from '../types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api';
 const SERVER_URL = API_URL.replace(/\/api\/?$/, '');
@@ -83,7 +83,7 @@ export function register(email: string, nickname: string, password: string): Pro
 // ---- 정식 API 응답 → 화면 타입 변환 ----
 interface ApiPost {
   id: string; userId: string; title: string; description: string | null; authorNickname?: string; itemName: string; imageUrls: string[]; expiryDate: string;
-  tradeType: 'SHARE' | 'TRADE' | 'FREE_MEAL'; status: FoodPost['status']; placeName: string | null; distanceKm?: number; dDay?: number;
+  tradeType: 'SHARE' | 'TRADE' | 'FREE_MEAL'; status: FoodPost['status']; placeName: string | null; distanceKm?: number; dDay?: number; weightGrams?: number | null;
 }
 const tradeTypes: Record<ApiPost['tradeType'], TradeType> = { SHARE: '나눔', TRADE: '교환', FREE_MEAL: '한끼 나눔' };
 const tradeCodes = { '나눔': 'SHARE', '교환': 'TRADE', '한끼 나눔': 'FREE_MEAL' } as const;
@@ -94,7 +94,7 @@ function toFoodPost(post: ApiPost): FoodPost {
     distance: `${(post.distanceKm ?? 0).toFixed(1)}km`, dDay: post.dDay === undefined ? post.expiryDate : post.dDay === 0 ? '오늘' : `D-${post.dDay}`,
     place: post.placeName ?? '', color: '#E6F4DE', expiryDate: post.expiryDate, status: post.status,
     imageUrl: post.imageUrls[0], isMine: post.userId === session?.userId,
-    description: post.description ?? undefined, authorName: post.authorNickname,
+    description: post.description ?? undefined, authorName: post.authorNickname, weightGrams: post.weightGrams ?? undefined,
   };
 }
 
@@ -111,7 +111,7 @@ export async function createPost(input: NewPostInput, neighborhood: Neighborhood
     return request('/local/posts', { method: 'POST', body: JSON.stringify(draft) });
   }
   // ponytail: 게시물 좌표 = 인증한 동네 좌표. 게시물별 거래 위치 지정이 필요하면 등록 화면에서 좌표를 받는다.
-  const body = { title: input.title, itemName: input.name, expiryDate: input.expiryDate, tradeType: tradeCodes[input.type], imageUrls: imageUrl ? [imageUrl] : [], latitude: neighborhood.latitude, longitude: neighborhood.longitude, placeName: input.place, ...(input.description ? { description: input.description } : {}) };
+  const body = { title: input.title, itemName: input.name, expiryDate: input.expiryDate, tradeType: tradeCodes[input.type], imageUrls: imageUrl ? [imageUrl] : [], latitude: neighborhood.latitude, longitude: neighborhood.longitude, placeName: input.place, ...(input.description ? { description: input.description } : {}), ...(input.weightGrams ? { weightGrams: input.weightGrams } : {}) };
   return { ...toFoodPost(await request<ApiPost>('/posts', { method: 'POST', body: JSON.stringify(body) })), authorName: session?.nickname };
 }
 
@@ -132,8 +132,13 @@ export async function listPendingReviews(): Promise<PendingReview[]> {
   return request('/reviews/pending', { method: 'GET' });
 }
 
-export async function submitReview(postId: string, rating: ReviewRating): Promise<void> {
-  await request('/reviews', { method: 'POST', body: JSON.stringify({ postId, rating }) });
+export async function submitReview(postId: string, rating: ReviewRating, praises: string[] = []): Promise<void> {
+  await request('/reviews', { method: 'POST', body: JSON.stringify({ postId, rating, praises }) });
+}
+
+export async function listReceivedReviews(): Promise<ReceivedReview[]> {
+  if (USE_LOCAL_STORE || !session) return [];
+  return request('/reviews/received', { method: 'GET' });
 }
 
 export async function getNeighborhood(): Promise<Neighborhood | null> {
@@ -164,8 +169,8 @@ export async function openChatRoom(post: FoodPost): Promise<ChatTarget> {
 }
 
 export async function listChatRooms(): Promise<ChatTarget[]> {
-  const rooms = await request<{ id: string; postTitle: string; ownerId: string; partnerNickname?: string }[]>('/chats/rooms', { method: 'GET' });
-  return rooms.map((room) => ({ roomId: room.id, item: room.postTitle, emoji: '🥕', neighborName: room.partnerNickname ?? (room.ownerId === session?.userId ? '문의한 이웃' : '게시물 이웃') }));
+  const rooms = await request<{ id: string; postTitle: string; ownerId: string; partnerNickname?: string; lastMessage?: string; lastMessageAt?: string; unreadCount?: number }[]>('/chats/rooms', { method: 'GET' });
+  return rooms.map((room) => ({ roomId: room.id, item: room.postTitle, emoji: '🥕', neighborName: room.partnerNickname ?? (room.ownerId === session?.userId ? '문의한 이웃' : '게시물 이웃'), lastMessage: room.lastMessage, lastMessageAt: room.lastMessageAt, unread: room.unreadCount }));
 }
 
 const roomPath = (roomId: string) => `/${USE_LOCAL_STORE ? 'local' : 'chats'}/rooms/${encodeURIComponent(roomId)}`;

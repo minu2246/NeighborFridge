@@ -51,11 +51,16 @@ export class UsersRepository {
          (SELECT COUNT(*) FROM posts WHERE user_id = $1 AND status = 'COMPLETED')::int AS "completedPosts",
          (SELECT COUNT(*) FROM posts WHERE user_id = $1 AND status IN ('ACTIVE', 'RESERVED'))::int AS "activePosts",
          (SELECT COUNT(DISTINCT CASE WHEN owner_id = $1 THEN requester_id ELSE owner_id END)
-            FROM chat_rooms WHERE owner_id = $1 OR requester_id = $1)::int AS "chatPartners",
+            FROM chat_rooms r WHERE (owner_id = $1 OR requester_id = $1)
+              AND EXISTS (SELECT 1 FROM chat_messages m WHERE m.room_id = r.id))::int AS "chatPartners",
          -- 매너 온도: 36.5°C에서 시작, 최고예요 +0.2 / 좋아요 +0.1 / 별로예요 -0.3, 0~99 범위
          ROUND(LEAST(99, GREATEST(0, 36.5 + COALESCE((SELECT SUM(CASE rating WHEN 2 THEN 0.2 WHEN 1 THEN 0.1 ELSE -0.3 END)
             FROM reviews WHERE reviewee_id = $1), 0)))::numeric, 1)::float AS "mannerTemperature",
-         (SELECT COUNT(*) FROM reviews WHERE reviewee_id = $1)::int AS "reviewCount"`,
+         (SELECT COUNT(*) FROM reviews WHERE reviewee_id = $1)::int AS "reviewCount",
+         -- 나눔 완료한 식재료 무게(kg)와 탄소 절감 추정치.
+         -- 계수 2.5 kgCO2e/kg: FAO(2013) Food Wastage Footprint의 식품 폐기 1kg당 온실가스 추정(전 지구 평균, 근사치)
+         ROUND(COALESCE((SELECT SUM(weight_grams) FROM posts WHERE user_id = $1 AND status = 'COMPLETED'), 0) / 1000.0, 2)::float AS "sharedKg",
+         ROUND(COALESCE((SELECT SUM(weight_grams) FROM posts WHERE user_id = $1 AND status = 'COMPLETED'), 0) / 1000.0 * 2.5, 2)::float AS "carbonSavedKg"`,
       [id],
     );
     return result.rows[0];

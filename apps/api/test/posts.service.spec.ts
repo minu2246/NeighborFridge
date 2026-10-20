@@ -13,6 +13,7 @@ describe('PostsService', () => {
     updateStatus: jest.fn(),
     softDelete: jest.fn(),
     hasChatWith: jest.fn(),
+    createReview: jest.fn(),
   } as unknown as PostsRepository;
   const service = new PostsService(repository);
 
@@ -75,5 +76,15 @@ describe('PostsService', () => {
     (repository.updateStatus as jest.Mock).mockResolvedValue({ id: 'post-1', status: 'COMPLETED' });
     await service.updateStatus('owner-1', 'post-1', { status: 'COMPLETED', completedWith: 'asker-1' });
     expect(repository.updateStatus).toHaveBeenCalledWith('post-1', 'COMPLETED', 'asker-1');
+  });
+
+  it('only accepts praise items that match the rating', async () => {
+    (repository.createReview as jest.Mock).mockResolvedValue(true);
+    await expect(service.createReview('u', 'p', 2, ['불친절해요'])).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.createReview('u', 'p', -1, ['응답이 빨라요'])).rejects.toBeInstanceOf(BadRequestException);
+    await service.createReview('u', 'p', 1, ['응답이 빨라요', '응답이 빨라요']);
+    expect(repository.createReview).toHaveBeenLastCalledWith('p', 'u', 1, ['응답이 빨라요']);
+    await service.createReview('u', 'p', -1, ['불친절해요']);
+    expect(repository.createReview).toHaveBeenLastCalledWith('p', 'u', -1, ['불친절해요']);
   });
 });

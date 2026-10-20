@@ -1,6 +1,6 @@
 # HANDOFF — NeighborFridge (이웃냉장고)
 
-> 마지막 갱신: 2026-10-20 · 작성: Claude Code
+> 마지막 갱신: 2026-10-21 · 작성: Claude Code
 > Claude Code / Codex / ChatGPT 간 작업 인수인계 문서입니다. 작업 시작 시 먼저 읽고, 작업 종료 시 갱신합니다. (하단 "AI 작업 규칙" 참고)
 
 ## 1. 프로젝트 개요
@@ -14,12 +14,13 @@
   5. 게시물 단위 1:1 실시간 채팅
 - 이후 확장: 사진 기반 자동 등록(소비기한·품목·알레르기 성분 → 게시물 자동 작성, 7절 참고), 레시피 추천, 탄소 절감량·매너 등급
 
-## 2. Git 상태 (2026-10-20 기준)
+## 2. Git 상태 (2026-10-21 기준)
 - 브랜치: `main` (`origin/main`과 동기화), stash 없음
 - 원격: `https://github.com/minu2246/NeighborFridge.git`
-- 2026-10-20 커밋·push: `d8e9c0d`(약속 시간 검증·start:api 수정), `0042ae7`(로그인 유지·닉네임·설명), 그 뒤 프로필 통계·후기/매너 온도·사진 OCR 커밋(이 HANDOFF 포함). 미커밋 변경 없음
+- 2026-10-20 커밋·push: `d8e9c0d`(약속 시간 검증·start:api 수정), `0042ae7`(로그인 유지·닉네임·설명), `b0881ea`(프로필 통계·후기/매너 온도·OCR 1차), 2026-10-21 무게·탄소·채팅 목록·후기 확장·빈 채팅방 수정·PaddleOCR 교체 커밋(이 HANDOFF 포함). 미커밋 변경 없음
 - 미추적(의도적으로 커밋 제외): `graphify-out/`(자동 생성물, 현재 코드 기준으로 오래됨), `team-reference/`(팀원 원본 자료)
-- 최근 흐름(10/20): Docker 정식 DB E2E → 버그 2건 수정 → 로그인 유지·닉네임 → 프로필 통계 → 거래 후기·매너 온도 → 무료 OCR 자동 작성
+- 최근 흐름(10/21): 무게·탄소 절감 → 채팅 목록(마지막 메시지·안 읽음) → 후기 칭찬 항목 → 빈 채팅방 버그 수정 → 실사진 OCR 실패 확인 → PaddleOCR 교체
+- 10/20 흐름: Docker 정식 DB E2E → 버그 2건 수정 → 로그인 유지·닉네임 → 프로필 통계 → 거래 후기·매너 온도 → 무료 OCR 자동 작성
 - 이전 흐름: Expo 모바일 MVP → 로컬 SQLite 저장 → 휴대폰 미리보기 → 사진 업로드 → 만료 처리 → 필터·정렬 → 소비기한 달력·거래 상태 → 상태 영속화·내 게시물
 
 ## 3. 프로젝트 구성
@@ -53,7 +54,8 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 - 개발 현황 페이지: `GET /api` (developer 모듈)
 - 사용자 통계: `GET /users/me/stats` → 나눔 완료·나눔 중·대화한 이웃·매너 온도·받은 후기 수
 - 거래 후기: 완료 시 거래 상대 지정(`completedWith`), `GET /reviews/pending`, `POST /reviews` (매너 온도 36.5°C 시작, +0.2/+0.1/-0.3)
-- 포장지 OCR: `POST /ocr/label` (tesseract.js 무료, 규칙 해석 `modules/ocr/label-parser.ts`)
+- 포장지 OCR: `POST /ocr/label` → compose `ocr` 서비스(PaddleOCR, `infra/ocr`) 인식 + 규칙 해석 `modules/ocr/label-parser.ts`
+- 게시물 무게(`weightGrams`)·탄소 절감 추정, 채팅 목록 마지막 메시지·안 읽은 수(읽음 처리), 후기 칭찬 항목·받은 후기(`GET /reviews/received`)
 
 ### Mobile (`apps/mobile`)
 - 화면: 인증(데모 진입 포함), 위치(동네 인증/직접 입력), 홈(필터·정렬·내 게시물), 등록(사진 선택, 소비기한 `DatePickerModal`), 게시물 상세(작성자 상태 변경), 채팅(거래 약속 배너·입력 폼), 프로필
@@ -121,16 +123,31 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
   - 테스트 사진: `storage/downloads/ocr-samples/`(Git 제외). 실제 휴대폰 촬영 사진(반사·굴곡·조명)으로는 미검증
   - 정리: 테스트를 `apps/api`에서 실행해 생긴 `apps/api/storage/`(npm 로그 16KB)는 사용자 승인 후 삭제. **npm/npx/jest 명령은 항상 루트에서 실행**(`.npmrc` 캐시 경로가 상대경로라 하위 폴더에서 실행하면 그 아래 `storage/`가 생김)
   - 한계: 구조화 저장 없음(내용량·알레르기는 설명 텍스트로만 저장 → 탄소 절감 계산하려면 `posts`에 무게 컬럼 필요), 로컬 모드 미지원, 이미지 전처리(대비·회전 보정) 없음
+- 2026-10-21 (Claude Code): **무게·탄소 절감, 채팅 목록 개선, 후기 확장**
+  - DB: `006_add_weight_and_praises.sql`(`posts.weight_grams`, `reviews.praises TEXT[]`) + `001_schema.sql` 끝에 동일 내용. 개발 DB 적용 완료
+  - 무게·탄소: 게시물 등록에 "무게 (선택, g)" 입력(1~100000, OCR 중량 자동 채움), 상세에 무게 표시. 통계에 `sharedKg`·`carbonSavedKg` = 나눔 완료 무게 합 × 2.5 kgCO2e/kg (FAO 2013 Food Wastage Footprint 기반 근사치, 화면에 "추정" 표기). 무게 없는 게시물은 제외
+  - 채팅 목록: `GET /chats/rooms`에 `lastMessage`·`lastMessageAt`·`unreadCount`, 최근 대화 순 정렬. 메시지 조회 시 상대 메시지 읽음 처리(`read_at`). 앱 목록에 시간(오늘 오전/오후 h:mm·어제·M.DD)·미리보기·안 읽은 수 배지, 목록 화면 10초 갱신
+  - 후기: 평가 선택 후 항목 선택(좋은 평가 → 칭찬 5종, 별로예요 → 아쉬운 점 4종, 서버에서 평가와 항목 일치 검증) → "후기 보내기". `GET /reviews/received`(최근 20개). 프로필에 "받은 매너 칭찬"(항목별 횟수)과 "받은 거래 후기" 목록. 항목 목록은 서버 `post.types.ts`와 앱 `ProfileScreen.tsx`에 같은 값으로 있음(바꿀 때 둘 다)
+  - 검증: 테스트 28개(읽음 처리·칭찬 항목 검증 추가)·빌드·타입체크 통과, 신규 E2E 12단계 + 기존 E2E 5종 통과, 웹 번들 반영 확인
+  - **버그 수정(사용자 제보)**: "채팅으로 약속 잡기"만 누르고 메시지를 안 보내도 채팅 목록에 대화가 있는 것처럼 보임(방이 즉시 생성되기 때문) → 메시지가 1개 이상인 방만 채팅 목록·"대화한 이웃" 수·거래 상대 후보로 인정. 방 자체는 유지(재진입 시 같은 방). 재현 E2E 8단계 + 기존 E2E 6종 통과
+- 2026-10-21 (Claude Code): **사진 OCR 엔진 교체 tesseract → PaddleOCR + 해석 규칙 보강**
+  - 계기: 사용자 실사진 4장(쵸코하임·치킨너겟·신라면·핫도그, `storage/downloads/ocr-samples/KakaoTalk_*`)에서 tesseract는 "함유" 줄 0/4, 전처리(sharp 흑백·대비·이진화·반전 × PSM 3/6/11 × 해상도) 실험에서도 1/4. 교차오염 안내("같은 제조시설") 성분을 함유로 잘못 잡는 위험 확인
+  - 엔진: `infra/ocr`(Dockerfile + `server.py`, 표준 라이브러리 HTTP 서버) → compose `ocr` 서비스(포트 8866, 이미지 `neighborfridge-ocr` 2.28GB, 모델 `storage/cache/paddleocr`). API는 `OCR_URL`(기본 http://localhost:8866)로 호출, 서버가 꺼져 있으면 503 안내. `tesseract.js` 의존성 제거
+  - 설정 근거(시험 결과): 인식 모델 korean_PP-OCRv3(PP-OCRv5 korean은 한글이 통째로 빠짐), 검출 mobile_det + enable_mkldnn=False(server_det은 메모리 부족 종료 137, mkldnn은 Paddle 3.x CPU 버그), 긴 변 2400px로 축소. 한 장 약 5~6초, 대기 메모리 약 413MB
+  - 해석 규칙(`label-parser.ts`): 교차오염 줄 제외, 함유 줄 못 찾으면 추측 안 함("확인 불가"), 띄어쓰기 없는 함유 줄 분해(가장 긴 이름부터, 한 글자 이름은 앞뒤 구분자 조건), 3글자 이상 이름은 한 글자 오인식 허용(대지고기→돼지고기), 계라→계란, 표 형태(항목명 다음 줄 값), "100g당" 제외, 10g 미만 제외, 내용량 줄 없으면 중량 추측 안 함
+  - 결과(실사진 4장, 원본·앱과 같은 JPEG 품질 45% 압축본 모두): 알레르기 4/4 정확, 틀린 값 0. 중량은 읽을 수 있는 것만(쵸코 142g·너겟 1kg, 압축본 너겟은 "19"로 읽혀 빈칸), 상품명 3/3 찾음(원본은 효코하임·치킨너겠처럼 한 글자 오인식 가능 → 사용자 확인 단계에서 수정)
+  - 검증: 테스트 30개(실사진 OCR 문자열 회귀 테스트 포함)·빌드·타입체크 통과, 실사진 E2E(원본·압축)·합성 라벨 E2E 통과
+  - 정리(사용자 승인 후 삭제): `storage/cache/tesseract/`(7.1MB), Docker 이미지 `neighborfridge-paddleocr-bench`(시험용). 실험용 `sharp`는 세션 임시 폴더에만 설치(프로젝트 밖, 프로젝트 코드 미사용)
 - **다음 작업**
   1. 정식 모드 남은 구멍 정리(아래 7절)
   2. 사진 자동 작성: 실제 휴대폰 사진으로 인식률 확인 후 규칙 보강
   3. 기능 완성 후 외부 배포
 
-## 6. 테스트·빌드 상태 (2026-10-20 재실행: test·build·mobile typecheck / 웹 export는 2026-10-01 결과)
+## 6. 테스트·빌드 상태 (2026-10-21 재실행: test·build·mobile typecheck / 웹 export는 2026-10-01 결과)
 | 명령 | 결과 |
 |---|---|
-| `npm test` (API Jest) | ✅ 8 suites / 26 tests 통과 (2026-10-20) |
-| 정식 모드 E2E (Docker PostGIS, `client.ts` 사용, 세션 임시 폴더의 스크립트) | ✅ 기본 12 + 프로필/로그인 9 + 통계 5 + 후기 13 + OCR 6단계 통과 (2026-10-20) |
+| `npm test` (API Jest) | ✅ 8 suites / 30 tests 통과 (2026-10-21) |
+| 정식 모드 E2E (Docker PostGIS, `client.ts` 사용, 세션 임시 폴더의 스크립트) | ✅ 기본 12 + 프로필/로그인 9 + 통계 5 + 후기 13 + OCR 6 + 무게·채팅·후기확장 12 + 빈 채팅방 8단계 + 실사진 OCR 4장(원본·압축) 통과 (2026-10-21) |
 | `npm run build` (API `tsc`) | ✅ 오류 없음 → `apps/api/dist/` |
 | `npm run typecheck --workspace @neighbor-fridge/mobile` | ✅ 오류 없음 |
 | `scripts/build-mobile-web.ps1` (Expo web export) | ✅ 성공 → `apps/api/public/mobile/` (bundle 약 469KB). 첫 실행 시 Node 경고 1건 출력, 재실행 시 재현되지 않음 |
@@ -141,8 +158,7 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 ## 7. 주요 남은 작업
 - 정식 모드 남은 구멍 (2026-10-02 연동 후)
   - 사진 업로드가 정식 모드에서도 `/local/uploads`(인증 없음, 로컬 디스크) 사용 → 외부 배포 전 S3 호환 저장소 + 인증 업로드 필요
-  - 채팅 목록에 마지막 메시지·안 읽은 수 미표시
-  - 프로필의 관심 목록·알림 설정·계정 메뉴는 고정 값/미구현. 탄소 절감은 무게 입력 기능이 생기면 추가
+  - 프로필의 관심 목록·알림 설정·계정 메뉴는 고정 값/미구현. 탄소 절감은 무게를 입력한 게시물만 계산(추정치)
   - 게시물 좌표 = 인증한 동네 좌표(게시물별 위치 지정 없음)
   - 데모 진입(로그인 없이)은 정식 모드에서 조회만 가능
 - 소셜 로그인 미구현 (이메일만)
@@ -153,8 +169,8 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 - DB 마이그레이션 실행 체계 없음 (아래 주의사항)
 - 모바일 테스트 부재
 - 거래 약속: 로컬·정식 모두 구현(2026-10-02). 약속 알림·상대방 수락 흐름 없음
-- 사진 자동 작성: 무료 OCR로 구현(2026-10-20, 5절). 남은 것 — 실제 휴대폰 사진 인식률 확인·규칙 보강, 무게·알레르기 구조화 저장(탄소 절감 계산용), 이미지 전처리. 유료 AI API는 사용자 결정으로 사용 안 함
-- 거래 후기 확장: 선택형 칭찬 항목, 받은 후기 목록, 후기 알림
+- 사진 자동 작성: PaddleOCR로 교체(2026-10-21, 5절). 남은 것 — 더 많은 실사진으로 규칙 보강, 상품명 한 글자 오인식, 속도(5~6초, mkldnn 버그로 CPU 가속 꺼짐), 알레르기 구조화 저장(지금은 설명 텍스트), 외부 배포 시 OCR 서버 자원(이미지 2.3GB·메모리 약 0.4GB 이상) 고려. 유료 AI API는 사용자 결정으로 사용 안 함
+- 거래 후기: 후기 알림, 다른 사람 프로필에서 매너 온도·칭찬 보기(지금은 내 프로필만)
 - 외부 배포 미진행: **앱 기능 구현 완료 후 시작하기로 결정(2026-10-02)**. 계획: 클라우드 Postgres(Neon/Supabase) → API 배포(Render/Railway/Fly.io) → 사진 저장소 분리(R2/Supabase Storage) → 모바일 API 주소 변경
 
 ## 8. 알려진 문제·주의사항
@@ -175,7 +191,7 @@ npm install
 
 # A) 정식 모드 (Docker 필요)
 copy .env.example .env      # 값 채우기 (비밀값은 Git에 올리지 않음)
-docker compose up -d
+docker compose up -d        # DB·Redis·사진 OCR 서버(첫 빌드 몇 분)
 npm run start:api           # http://localhost:3000/api
 npm run start:web           # Expo Web
 
@@ -227,7 +243,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\audit-storage.ps1
   2. `scripts/cleanup-project.ps1`(인자 없이)로 삭제 예정 목록만 출력해 사용자에게 제시
   3. 승인 후 `scripts/cleanup-project.ps1 -Execute`
 - GitHub 저장소·클라우드 DB·S3·Firebase 등 외부 자원은 항목별 별도 승인 (`deletionRequiresSeparateApproval`)
-- 프로젝트 밖 설치물(Docker Desktop, WSL, 가상 머신 플랫폼 기능, Docker 데이터 폴더, docker-desktop WSL 배포판, 이미지/컨테이너)은 `EXTERNAL_RESOURCES.json`에 기록됨(2026-10-20 실제 설치 기준 보완). 제거 순서는 같은 파일의 `uninstallOrder`. Desktop·WSL·가상화 기능 제거는 사용자 확인 후
+- 프로젝트 밖 설치물(Docker Desktop, WSL, 가상 머신 플랫폼 기능, Docker 데이터 폴더, docker-desktop WSL 배포판, 이미지/컨테이너, 2026-10-21 PaddleOCR 시험 이미지)은 `EXTERNAL_RESOURCES.json`에 기록됨(2026-10-20 실제 설치 기준 보완). 제거 순서는 같은 파일의 `uninstallOrder`. Desktop·WSL·가상화 기능 제거는 사용자 확인 후
 - 소스 폴더 전체 삭제는 영구 삭제가 아닌 휴지통 이동
 - 비밀번호·API 키·토큰 등 민감정보는 이 문서와 Git에 기록하지 않는다
 

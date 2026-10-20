@@ -10,6 +10,8 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
   const [type, setType] = useState<TradeType>('나눔'); const [expiryDate, setExpiryDate] = useState('');
   const [place, setPlace] = useState(''); const [saved, setSaved] = useState(false);
   const [description, setDescription] = useState('');
+  const [weight, setWeight] = useState(''); // g, 선택 (탄소 절감 추정용)
+  const weightGrams = /^\d+$/.test(weight.trim()) ? Number(weight.trim()) : undefined;
   const [error, setError] = useState('');
   const [photo, setPhoto] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -28,6 +30,7 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
       if (info.expiryDate) { if (!expiryDate) setExpiryDate(info.expiryDate); notes.push(`소비기한: ${formatDate(info.expiryDate)}`); } else notes.push('소비기한: 찾지 못함 (달력에서 선택)');
       const extra: string[] = [];
       if (info.weightText) { extra.push(`내용량: ${info.weightText}`); notes.push(`내용량: ${info.weightText}`); }
+      if (info.weightGrams && !weight.trim()) setWeight(String(Math.round(info.weightGrams)));
       if (info.allergenLabelFound) {
         const text = info.allergens.length ? info.allergens.join(', ') : '표시 문구는 있으나 성분을 읽지 못함';
         extra.push(`알레르기 유발물질: ${text}`); notes.push(`알레르기: ${text}`);
@@ -52,13 +55,14 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
   }
   async function savePost() {
     setSubmitting(true);
-    try { await onSubmit({ name: name.trim(), title: title.trim(), type, expiryDate, place: place.trim(), description: description.trim() || undefined, photoBase64: photo?.base64, photoMimeType: photo?.mimeType }); setSaved(true); }
+    try { await onSubmit({ name: name.trim(), title: title.trim(), type, expiryDate, place: place.trim(), description: description.trim() || undefined, weightGrams, photoBase64: photo?.base64, photoMimeType: photo?.mimeType }); setSaved(true); }
     catch (reason) { setError(reason instanceof Error ? reason.message : '사진 또는 게시물을 저장하지 못했어요. 다시 시도해 주세요.'); }
     finally { setSubmitting(false); }
   }
   function submit() {
     setError('');
     if (!name.trim() || !title.trim() || !expiryDate || !place.trim()) { setError('모든 필수 항목을 입력해 주세요.'); return; }
+    if (weight.trim() && (!weightGrams || weightGrams > 100000)) { setError('무게는 1~100000 사이의 숫자(g)로 입력해 주세요.'); return; }
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const expiry = new Date(`${expiryDate}T00:00:00`);
     const days = Math.round((expiry.getTime() - today.getTime()) / 86_400_000);
@@ -68,13 +72,14 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
   return <ScrollView contentContainerStyle={styles.page}>
     <Text style={styles.title}>냉장고 열기</Text><Text style={styles.subtitle}>이웃에게 나눌 식재료를 알려주세요.</Text>
     <View style={styles.photo}>{photo ? <><Image source={{ uri: photo.uri }} style={styles.preview}/><Pressable style={styles.remove} onPress={() => setPhoto(null)}><Text style={styles.removeText}>사진 삭제</Text></Pressable></> : <><Text style={styles.photoEmoji}>📷</Text><Text style={styles.photoText}>식재료 사진 추가</Text><View style={styles.photoActions}><Pressable onPress={() => void pickPhoto(true)}><Text style={styles.photoButton}>카메라</Text></Pressable><Pressable onPress={() => void pickPhoto(false)}><Text style={styles.photoButton}>갤러리</Text></Pressable></View></>}</View>
-    {photo && !USE_LOCAL_STORE ? <Pressable style={[styles.autoButton, reading && styles.disabled]} disabled={reading} onPress={() => void autoFill()}>{reading ? <ActivityIndicator color="#19734B" /> : <Text style={styles.autoButtonText}>📷 포장지 사진으로 자동 작성</Text>}</Pressable> : null}
+    {photo && !USE_LOCAL_STORE ? <Pressable style={[styles.autoButton, reading && styles.disabled]} disabled={reading} onPress={() => void autoFill()}>{reading ? <View style={styles.autoReading}><ActivityIndicator color="#19734B" /><Text style={styles.autoButtonText}>  사진 읽는 중… (5~10초)</Text></View> : <Text style={styles.autoButtonText}>📷 포장지 사진으로 자동 작성</Text>}</Pressable> : null}
     {autoNotes.length ? <View style={styles.autoBox}><Text style={styles.autoTitle}>자동 입력됨 — 포장지와 꼭 비교해 확인해 주세요</Text>{autoNotes.map((note) => <Text key={note} style={styles.autoNote}>• {note}</Text>)}</View> : null}
     <Label text="식재료 이름" /><TextInput value={name} onChangeText={setName} style={styles.input} placeholder="예: 유정란 6구" placeholderTextColor="#9AA8A0" />
     <Label text="게시물 제목" /><TextInput value={title} onChangeText={setTitle} style={styles.input} placeholder="이웃에게 보여줄 한마디" placeholderTextColor="#9AA8A0" />
     <Label text="설명 (선택)" /><TextInput value={description} onChangeText={setDescription} style={[styles.input, styles.multiline]} placeholder="보관 상태, 남은 양 등을 알려주세요" placeholderTextColor="#9AA8A0" multiline maxLength={2000} />
     <Label text="거래 방식" /><View style={styles.options}>{(['나눔', '교환', '한끼 나눔'] as TradeType[]).map((value) => <Pressable key={value} onPress={() => setType(value)}><Text style={[styles.option, type === value && styles.selected]}>{value}</Text></Pressable>)}</View>
     <Label text="소비기한" /><Pressable onPress={() => setCalendarOpen(true)} style={styles.dateButton}><Text style={expiryDate ? styles.dateValue : styles.datePlaceholder}>{expiryDate ? formatDate(expiryDate) : '날짜 선택하기'}</Text><Text style={styles.calendarIcon}>▣</Text></Pressable>
+    {!USE_LOCAL_STORE ? <><Label text="무게 (선택, g)" /><TextInput value={weight} onChangeText={setWeight} style={styles.input} placeholder="예: 300 — 나눔으로 줄인 탄소를 계산해요" placeholderTextColor="#9AA8A0" keyboardType="number-pad" maxLength={6} /></> : null}
     <Label text="거래 장소" /><TextInput value={place} onChangeText={setPlace} style={styles.input} placeholder="안전한 공공장소를 입력하세요" placeholderTextColor="#9AA8A0" />
     {error ? <Text style={styles.error}>{error}</Text> : null}
     {saved && <Text style={styles.saved}>✓ 홈 목록에 등록되었습니다.</Text>}
@@ -95,7 +100,7 @@ const styles = StyleSheet.create({
   options: { flexDirection: 'row' }, option: { paddingVertical: 10, paddingHorizontal: 15, backgroundColor: '#EDF2EF', color: '#5D6D64', borderRadius: 12, overflow: 'hidden', marginRight: 8, fontWeight: '700' }, selected: { backgroundColor: '#19734B', color: '#FFF' },
   saved: { color: '#19734B', fontWeight: '800', marginTop: 18, textAlign: 'center' }, submit: { height: 54, borderRadius: 16, backgroundColor: '#19734B', alignItems: 'center', justifyContent: 'center', marginTop: 18 }, submitText: { color: '#FFF', fontWeight: '900', fontSize: 16 },
   error: { color: '#B54C3C', fontSize: 12, fontWeight: '700', marginTop: 12, textAlign: 'center' },
-  autoButton: { height: 48, borderRadius: 14, borderWidth: 1.5, borderColor: '#19734B', backgroundColor: '#F1F9F4', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }, autoButtonText: { color: '#19734B', fontWeight: '900' },
+  autoButton: { height: 48, borderRadius: 14, borderWidth: 1.5, borderColor: '#19734B', backgroundColor: '#F1F9F4', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }, autoButtonText: { color: '#19734B', fontWeight: '900' }, autoReading: { flexDirection: 'row', alignItems: 'center' },
   autoBox: { backgroundColor: '#FFF8DF', borderRadius: 14, padding: 14, marginTop: 8 }, autoTitle: { color: '#6E5B18', fontWeight: '900', marginBottom: 6 }, autoNote: { color: '#6E5B18', fontSize: 12, lineHeight: 19 },
   disabled: { opacity: 0.55 }, multiline: { height: 96, paddingTop: 13, textAlignVertical: 'top' },
   warningOverlay: { flex: 1, backgroundColor: 'rgba(17,39,29,.5)', alignItems: 'center', justifyContent: 'center', padding: 24 }, warningBox: { width: '100%', maxWidth: 360, backgroundColor: '#FFF', borderRadius: 24, padding: 24, alignItems: 'center' }, warningEmoji: { fontSize: 36 }, warningTitle: { color: '#5C4018', fontSize: 19, fontWeight: '900', marginTop: 10 }, warningText: { color: '#735F3D', lineHeight: 22, textAlign: 'center', marginTop: 10, marginBottom: 20 }, warningConfirm: { width: '100%', height: 50, borderRadius: 14, backgroundColor: '#D4772B', alignItems: 'center', justifyContent: 'center' }, warningConfirmText: { color: '#FFF', fontWeight: '900' }, warningCancel: { paddingVertical: 14 }, warningCancelText: { color: '#66766E', fontWeight: '800' },

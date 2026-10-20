@@ -6,7 +6,7 @@ import { ChatMessageRecord, ChatRoomRecord } from './chat.types';
 type RoomRow = {
   id: string; post_id: string; post_title: string; owner_id: string;
   requester_id: string; meet_at: string | null; meet_place: string | null; created_at: Date;
-  partner_nickname?: string;
+  partner_nickname?: string; last_message?: string | null; last_message_at?: Date | null; unread_count?: number;
 };
 type MessageRow = {
   id: string; room_id: string; sender_id: string; message: string;
@@ -38,11 +38,14 @@ export class ChatRepository {
   async listRooms(userId: string): Promise<ChatRoomRecord[]> {
     const result = await this.pool.query<RoomRow>(
       `SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, to_char(r.meet_at, 'YYYY-MM-DD"T"HH24:MI') AS meet_at, r.meet_place, r.created_at,
-         partner.nickname AS partner_nickname
+         partner.nickname AS partner_nickname, last.message AS last_message, last.sent_at AS last_message_at,
+         (SELECT COUNT(*) FROM chat_messages m WHERE m.room_id = r.id AND m.sender_id <> $1 AND m.read_at IS NULL)::int AS unread_count
        FROM chat_rooms r JOIN posts p ON p.id = r.post_id
        JOIN users partner ON partner.id = CASE WHEN r.owner_id = $1 THEN r.requester_id ELSE r.owner_id END
-       WHERE r.owner_id = $1 OR r.requester_id = $1
-       ORDER BY r.created_at DESC`,
+       LEFT JOIN LATERAL (SELECT m.message, m.sent_at FROM chat_messages m WHERE m.room_id = r.id ORDER BY m.sent_at DESC LIMIT 1) last ON true
+       -- "채팅으로 약속 잡기"만 누르고 메시지가 없는 방은 목록에 보이지 않게
+       WHERE (r.owner_id = $1 OR r.requester_id = $1) AND last.sent_at IS NOT NULL
+       ORDER BY last.sent_at DESC`,
       [userId],
     );
     return result.rows.map((row) => this.mapRoom(row));
@@ -61,6 +64,11 @@ export class ChatRepository {
 
   async saveAppointment(roomId: string, meetAt: string, place: string): Promise<void> {
     await this.pool.query('UPDATE chat_rooms SET meet_at = $2, meet_place = $3 WHERE id = $1', [roomId, meetAt, place]);
+  }
+
+  // 상대가 보낸 안 읽은 메시지를 읽음 처리
+  async markRead(roomId: string, readerId: string): Promise<void> {
+    await this.pool.query('UPDATE chat_messages SET read_at = NOW() WHERE room_id = $1 AND sender_id <> $2 AND read_at IS NULL', [roomId, readerId]);
   }
 
   async listMessages(roomId: string, limit: number, offset: number): Promise<ChatMessageRecord[]> {
@@ -88,6 +96,7 @@ export class ChatRepository {
       id: row.id, postId: row.post_id, postTitle: row.post_title,
       ownerId: row.owner_id, requesterId: row.requester_id,
       meetAt: row.meet_at, meetPlace: row.meet_place, partnerNickname: row.partner_nickname,
+      lastMessage: row.last_message ?? undefined, lastMessageAt: row.last_message_at?.toISOString(), unreadCount: row.unread_count,
       createdAt: row.created_at.toISOString(),
     };
   }

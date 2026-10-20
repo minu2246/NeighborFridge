@@ -16,6 +16,8 @@ export interface UserStats {
   chatPartners: number;
   mannerTemperature: number;
   reviewCount: number;
+  sharedKg: number;
+  carbonSavedKg: number; // 추정치
 }
 
 export interface UserWithPassword extends UserRecord {

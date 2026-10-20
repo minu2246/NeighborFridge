@@ -4,12 +4,15 @@ import {
   IsArray,
   IsDateString,
   IsIn,
+  IsInt,
   IsLatitude,
   IsLongitude,
   IsOptional,
   IsString,
   IsUrl,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { TRADE_TYPES, TradeType } from '../post.types';
 
@@ -50,4 +53,11 @@ export class CreatePostDto {
   @IsString()
   @MaxLength(150)
   placeName?: string;
+
+  // 탄소 절감 추정용 무게(g). 최대 100kg
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100000)
+  weightGrams?: number;
 }

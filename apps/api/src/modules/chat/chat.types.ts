@@ -6,7 +6,11 @@ export interface ChatRoomRecord {
   requesterId: string;
   meetAt: string | null;
   meetPlace: string | null;
-  partnerNickname?: string; // 목록 조회 시에만 채워짐
+  // 아래는 목록 조회 시에만 채워짐
+  partnerNickname?: string;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  unreadCount?: number;
   createdAt: string;
 }
 

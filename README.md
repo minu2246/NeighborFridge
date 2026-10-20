@@ -49,7 +49,7 @@
 | 거래 상태 변경 (예약중 · 거래 완료), 내 게시물 보기 | ✅ 구현 |
 | 소비기한 경과 게시물 자동 만료 | ✅ 구현 |
 | 게시물별 1:1 채팅 + 거래 약속 잡기 | ✅ 구현 (현재 앱은 5초 간격으로 새 메시지 확인) |
-| 포장지 사진으로 상품명·소비기한·중량·알레르기 자동 입력 (무료 OCR, 사용자 확인 후 등록) | ✅ 구현 |
+| 포장지 사진으로 상품명·소비기한·중량·알레르기 자동 입력 (무료 OCR PaddleOCR, 사용자 확인 후 등록) | ✅ 구현 |
 | 거래 후기와 매너 온도, 프로필 통계 | ✅ 구현 |
 | 로그인 유지 | ✅ 구현 |
 | 푸시 알림 | ⬜ 예정 |
@@ -98,7 +98,7 @@ npm install
 **A. 정식 모드** (Docker 필요)
 ```powershell
 copy .env.example .env      # 값을 채워 넣기 (비밀값은 Git에 올리지 않음)
-docker compose up -d        # PostgreSQL/PostGIS, Redis
+docker compose up -d        # PostgreSQL/PostGIS, Redis, 사진 OCR 서버(첫 실행 시 빌드 몇 분, 약 2.3GB)
 npm run start:api           # http://localhost:3000/api
 npm run start:web           # 브라우저에서 앱 확인
 ```

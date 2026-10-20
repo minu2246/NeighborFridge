@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 import { DATABASE_POOL } from '../../database/database.module';
 import { CreatePostDto } from './dto/create-post.dto';
 import { FindNearbyPostsDto } from './dto/find-nearby-posts.dto';
-import { MutablePostStatus, PendingReview, PostRecord, ReviewRating } from './post.types';
+import { MutablePostStatus, PendingReview, PostRecord, ReceivedReview, ReviewRating } from './post.types';
 import { UpdatePostDto } from './dto/update-post.dto';
 
 type DbPostRow = {
@@ -20,6 +20,7 @@ type DbPostRow = {
   distance_km?: string;
   d_day?: number;
   author_nickname?: string;
+  weight_grams?: number | null;
   created_at: Date;
 };
 
@@ -31,13 +32,13 @@ export class PostsRepository {
     const result = await this.pool.query<DbPostRow>(
       `INSERT INTO posts (
         user_id, title, description, item_name, image_urls,
-        expiry_date, trade_type, location, place_name
+        expiry_date, trade_type, location, place_name, weight_grams
       ) VALUES (
         $1, $2, $3, $4, $5::jsonb, $6, $7,
-        ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography, $10
+        ST_SetSRID(ST_MakePoint($8, $9), 4326)::geography, $10, $11
       )
       RETURNING id, user_id, title, description, item_name, image_urls,
-        expiry_date::text, trade_type, status, place_name, created_at`,
+        expiry_date::text, trade_type, status, place_name, weight_grams, created_at`,
       [
         userId,
         input.title,
@@ -49,6 +50,7 @@ export class PostsRepository {
         input.longitude,
         input.latitude,
         input.placeName ?? null,
+        input.weightGrams ?? null,
       ],
     );
     return this.mapRow(result.rows[0]);
@@ -64,7 +66,7 @@ export class PostsRepository {
         SELECT ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography AS user_location
       )
       SELECT p.id, p.user_id, p.title, p.description, p.item_name, p.image_urls,
-        p.expiry_date::text, p.trade_type, p.status, p.place_name, p.created_at,
+        p.expiry_date::text, p.trade_type, p.status, p.place_name, p.weight_grams, p.created_at,
         ST_Distance(p.location, params.user_location) / 1000.0 AS distance_km,
         p.expiry_date - (NOW() AT TIME ZONE 'Asia/Seoul')::date AS d_day,
         u.nickname AS author_nickname
@@ -141,7 +143,11 @@ export class PostsRepository {
   }
 
   async hasChatWith(postId: string, requesterId: string): Promise<boolean> {
-    const result = await this.pool.query('SELECT 1 FROM chat_rooms WHERE post_id = $1 AND requester_id = $2 LIMIT 1', [postId, requesterId]);
+    // 실제로 메시지가 오간 채팅만 인정(방만 열고 나간 경우 제외)
+    const result = await this.pool.query(
+      'SELECT 1 FROM chat_rooms r WHERE r.post_id = $1 AND r.requester_id = $2 AND EXISTS (SELECT 1 FROM chat_messages m WHERE m.room_id = r.id) LIMIT 1',
+      [postId, requesterId],
+    );
     return (result.rowCount ?? 0) > 0;
   }
 
@@ -160,16 +166,28 @@ export class PostsRepository {
   }
 
   // 거래 당사자만, 게시물당 한 번. 조건이 안 맞으면 false.
-  async createReview(postId: string, reviewerId: string, rating: ReviewRating): Promise<boolean> {
+  async createReview(postId: string, reviewerId: string, rating: ReviewRating, praises: string[]): Promise<boolean> {
     const result = await this.pool.query(
-      `INSERT INTO reviews (post_id, reviewer_id, reviewee_id, rating)
-       SELECT p.id, $2, CASE WHEN p.user_id = $2 THEN p.completed_with ELSE p.user_id END, $3
+      `INSERT INTO reviews (post_id, reviewer_id, reviewee_id, rating, praises)
+       SELECT p.id, $2, CASE WHEN p.user_id = $2 THEN p.completed_with ELSE p.user_id END, $3, $4::text[]
        FROM posts p
        WHERE p.id = $1 AND p.status = 'COMPLETED' AND p.completed_with IS NOT NULL AND $2 IN (p.user_id, p.completed_with)
        ON CONFLICT (post_id, reviewer_id) DO NOTHING`,
-      [postId, reviewerId, rating],
+      [postId, reviewerId, rating, praises],
     );
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async listReceivedReviews(userId: string): Promise<ReceivedReview[]> {
+    const result = await this.pool.query<ReceivedReview & { createdAt: Date }>(
+      `SELECT r.rating, r.praises, p.item_name AS "itemName", reviewer.nickname AS "reviewerNickname", r.created_at AS "createdAt"
+       FROM reviews r JOIN posts p ON p.id = r.post_id JOIN users reviewer ON reviewer.id = r.reviewer_id
+       WHERE r.reviewee_id = $1
+       ORDER BY r.created_at DESC
+       LIMIT 20`,
+      [userId],
+    );
+    return result.rows.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() }));
   }
 
   async softDelete(id: string): Promise<boolean> {
@@ -208,6 +226,7 @@ export class PostsRepository {
       distanceKm: row.distance_km === undefined ? undefined : Number(row.distance_km),
       dDay: row.d_day,
       authorNickname: row.author_nickname,
+      weightGrams: row.weight_grams ?? null,
       createdAt: row.created_at.toISOString(),
     };
   }

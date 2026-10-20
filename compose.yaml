@@ -28,3 +28,12 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # 포장지 사진 OCR (PaddleOCR, 무료). 첫 빌드는 몇 분 걸림(이미지 약 2.3GB)
+  ocr:
+    build: ./infra/ocr
+    image: neighborfridge-ocr
+    ports:
+      - "8866:8866"
+    volumes:
+      - ./storage/cache/paddleocr:/cache

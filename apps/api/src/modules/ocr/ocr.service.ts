@@ -1,31 +1,27 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import { mkdirSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { createWorker, Worker } from 'tesseract.js';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { LabelInfo, parseLabel } from './label-parser';
 
-// 무료 오픈소스 OCR(tesseract.js, 한국어+영어). 언어 데이터는 첫 실행 때 내려받아 storage/cache/tesseract에 보관.
-// ponytail: 워커 1개를 재사용해 요청을 순서대로 처리. 동시 요청이 많아지면 tesseract.js createScheduler로 워커를 늘린다.
+// 글자 인식은 compose의 ocr 서비스(PaddleOCR, infra/ocr)가 하고, 여기서는 결과를 규칙으로 해석한다.
+// tesseract.js는 실사진 4장 중 0장 인식으로 2026-10-21 교체.
 @Injectable()
-export class OcrService implements OnModuleDestroy {
-  private worker: Promise<Worker> | null = null;
+export class OcrService {
+  private readonly url: string;
+
+  constructor(config: ConfigService) {
+    this.url = config.get<string>('OCR_URL', 'http://localhost:8866');
+  }
 
   async readLabel(image: Buffer): Promise<LabelInfo & { text: string }> {
-    const { data } = await (await this.getWorker()).recognize(image);
-    return { ...parseLabel(data.text), text: data.text };
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    if (this.worker) await (await this.worker).terminate();
-  }
-
-  private getWorker(): Promise<Worker> {
-    if (!this.worker) {
-      const cachePath = resolve('storage/cache/tesseract');
-      mkdirSync(cachePath, { recursive: true });
-      this.worker = createWorker(['kor', 'eng'], 1, { cachePath });
-      this.worker.catch(() => { this.worker = null; }); // 언어 데이터 다운로드 실패 시 다음 요청에서 재시도
+    let lines: string[];
+    try {
+      const response = await fetch(`${this.url}/ocr`, { method: 'POST', body: new Uint8Array(image), signal: AbortSignal.timeout(60_000) });
+      if (!response.ok) throw new Error(`OCR ${response.status}`);
+      ({ lines } = (await response.json()) as { lines: string[] });
+    } catch {
+      throw new ServiceUnavailableException('사진 인식 서버에 연결하지 못했어요. 잠시 후 다시 시도하거나 직접 입력해 주세요.');
     }
-    return this.worker;
+    const text = lines.join('\n');
+    return { ...parseLabel(text), text };
   }
 }
