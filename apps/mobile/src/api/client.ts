@@ -67,6 +67,8 @@ export async function restoreSession(): Promise<{ nickname: string } | null> {
   }
 }
 
+export const isLoggedIn = (): boolean => session !== null;
+
 export async function logout(): Promise<void> {
   session = null;
   await sessionStore.remove().catch(() => undefined);

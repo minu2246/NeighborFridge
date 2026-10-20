@@ -1,6 +1,6 @@
 # HANDOFF — NeighborFridge (이웃냉장고)
 
-> 마지막 갱신: 2026-10-21 · 작성: Claude Code
+> 마지막 갱신: 2026-10-21 · 작성: Claude Code (OCR 실사진 개선·로그인 안내까지)
 > Claude Code / Codex / ChatGPT 간 작업 인수인계 문서입니다. 작업 시작 시 먼저 읽고, 작업 종료 시 갱신합니다. (하단 "AI 작업 규칙" 참고)
 
 ## 1. 프로젝트 개요
@@ -79,7 +79,7 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
   - API: `users`에 `neighborhood_name`·`search_radius_km`, `chat_rooms`에 `meet_at`·`meet_place` 추가(`001_schema.sql` + 기존 DB용 `004` 마이그레이션), 정식 채팅 약속 엔드포인트, nearby가 RESERVED 포함, `imageUrls` 검증 `require_tld: false`(localhost/IP 허용), `NODE_ENV=development`에서도 CORS 허용, 약속 메시지 포맷 `formatAppointmentMessage`(`chat.types.ts`) 공용화
   - Mobile: `client.ts` 재작성(토큰 보관·Authorization 헤더, 정식 응답 → `FoodPost`/`ChatMessage` 변환, 빈 응답 null 처리), `App.tsx`·`ChatScreen.tsx`·`PostDetailScreen.tsx` 연결
   - 검증: 단위 테스트·빌드·타입체크 통과, 로컬 모드 API 스모크(동네 저장, 약속 저장/조회, 지난 날짜 400, 빈 약속 200 빈 응답, 토큰 없는 `/chats/rooms` 401) 확인
-  - 실행 모드: `npm run start:web`은 정식 모드(기본). `phone:start`·`build-mobile-web.ps1`은 스크립트가 `EXPO_PUBLIC_USE_LOCAL_STORE=true`를 설정하므로 계속 로컬 모드
+  - 실행 모드: `npm run start:web`은 정식 모드(기본). `phone:start`는 스크립트가 `EXPO_PUBLIC_USE_LOCAL_STORE=true`를 설정하므로 로컬 모드. `build-mobile-web.ps1`은 2026-10-21부터 기본 정식 모드(`-LocalStore`로 로컬 모드)
   - **미검증**: PostgreSQL/PostGIS 위에서 정식 모드 전체 흐름(이 PC에 Docker·PostgreSQL 미설치), 앱 화면 동작
 - 2026-10-02 (Claude Code): DB 환경은 **Docker Desktop으로 결정**(사양 확인: RAM 31GB, 가상화 켜짐, WSL2 미설치로 보임). 사용자가 직접 설치 예정(`winget install Docker.DockerDesktop`, 재부팅 필요할 수 있음). Docker 관련 외부 자원은 설치 전에 `EXTERNAL_RESOURCES.json`·`FILE_MANAGEMENT.md`에 기록
 - 2026-10-02: 사진 기반 게시물 자동 작성(소비기한·품목·알레르기 성분) 요구사항·설계 메모를 7절과 `PROJECT_BRIEF.md`에 기록 (미구현, AI 서비스·API 키 미정)
@@ -138,10 +138,19 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
   - 결과(실사진 4장, 원본·앱과 같은 JPEG 품질 45% 압축본 모두): 알레르기 4/4 정확, 틀린 값 0. 중량은 읽을 수 있는 것만(쵸코 142g·너겟 1kg, 압축본 너겟은 "19"로 읽혀 빈칸), 상품명 3/3 찾음(원본은 효코하임·치킨너겠처럼 한 글자 오인식 가능 → 사용자 확인 단계에서 수정)
   - 검증: 테스트 30개(실사진 OCR 문자열 회귀 테스트 포함)·빌드·타입체크 통과, 실사진 E2E(원본·압축)·합성 라벨 E2E 통과
   - 정리(사용자 승인 후 삭제): `storage/cache/tesseract/`(7.1MB), Docker 이미지 `neighborfridge-paddleocr-bench`(시험용). 실험용 `sharp`는 세션 임시 폴더에만 설치(프로젝트 밖, 프로젝트 코드 미사용)
-- **다음 작업**
-  1. 정식 모드 남은 구멍 정리(아래 7절)
-  2. 사진 자동 작성: 실제 휴대폰 사진으로 인식률 확인 후 규칙 보강
-  3. 기능 완성 후 외부 배포
+- 2026-10-21 (Claude Code): **사용자 제보 "서버에서 실행하면 사진 자동 작성이 안 됨"**
+  - 원인: `http://localhost:3000/mobile/`(API가 서빙하는 정적 웹)은 2026-10-01 빌드 그대로였고 `build-mobile-web.ps1`이 로컬 저장 모드로 고정 → 최근 기능 전부 없음, OCR 버튼 없음
+  - 조치: 스크립트 기본값을 정식 모드로 변경(`-LocalStore` 스위치 추가), 정적 웹 재빌드 → 서빙 번들에 `/ocr/label`·후기 기능 포함 확인. **코드를 바꾼 뒤 서버 주소로 확인하려면 이 스크립트를 다시 실행해야 함**(개발 서버 `npm run start:web`/8081은 자동 반영)
+  - 참고: `phone:start`(휴대폰 미리보기)는 여전히 로컬 모드라 OCR·후기 등 정식 모드 기능이 없음
+  - 추가 제보 "버튼은 있는데 눌러도 자동 작성이 안 됨": 브라우저 확인 결과 localhost:3000에 로그인 정보가 없어 `/ocr/label`이 401(로그인 정보는 주소·포트마다 따로 저장 → 8081에서 로그인해도 3000에선 다시 로그인 필요, 데모 진입도 동일). 오류 문구가 폼 맨 아래에 떠서 반응이 없는 것처럼 보였음. 로그인 상태에서는 같은 브라우저에서 200 정상
+  - 조치: 로그인 안 했으면 버튼 대신 "로그인하면 사용할 수 있어요" 안내, 자동 작성 오류는 버튼 바로 아래 표시(`isLoggedIn()` 추가). 정적 웹 재빌드, 서빙 번들 반영 확인
+- **다음 작업** (2026-10-21 사용자와 합의한 OCR 개선 순서)
+  1. **OCR 채점 세트**: 사용자가 포장지 사진 10~15장 추가 예정(`storage/downloads/ocr-samples`, 과자·라면·냉동·유제품·두부/계란 등, 소비기한 날짜 면 포함) → Claude가 정답표 작성 → 사진별 상품명·중량·알레르기·소비기한 정확도를 자동 채점하는 스크립트. 이후 개선은 이 점수로 판단
+  2. **소비기한 날짜 따로 찍기**: 실사진 4장 모두 "측면/후면 표기일까지"라 날짜가 다른 면에 있음 → 등록 화면에 날짜만 읽는 두 번째 사진 버튼
+  3. **속도 5~6초 → 2초 안팎 목표**: Paddle 버전 고정으로 mkldnn 버그 회피 또는 ONNX 실행 엔진
+  4. **상품명 한 글자 오류**: PP-OCRv5 korean 재시도(현재 버전 조합에서 한글 누락 버그)
+  5. 기울어진·굽은 사진: 글자 줄 방향 보정 켜고 측정
+  - 그 외: 휴대폰 미리보기(`phone:start`) 정식 모드 지원, 외부 배포(OCR 서버 자원 고려), 소셜 로그인·푸시 알림
 
 ## 6. 테스트·빌드 상태 (2026-10-21 재실행: test·build·mobile typecheck / 웹 export는 2026-10-01 결과)
 | 명령 | 결과 |
@@ -150,7 +159,7 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 | 정식 모드 E2E (Docker PostGIS, `client.ts` 사용, 세션 임시 폴더의 스크립트) | ✅ 기본 12 + 프로필/로그인 9 + 통계 5 + 후기 13 + OCR 6 + 무게·채팅·후기확장 12 + 빈 채팅방 8단계 + 실사진 OCR 4장(원본·압축) 통과 (2026-10-21) |
 | `npm run build` (API `tsc`) | ✅ 오류 없음 → `apps/api/dist/` |
 | `npm run typecheck --workspace @neighbor-fridge/mobile` | ✅ 오류 없음 |
-| `scripts/build-mobile-web.ps1` (Expo web export) | ✅ 성공 → `apps/api/public/mobile/` (bundle 약 469KB). 첫 실행 시 Node 경고 1건 출력, 재실행 시 재현되지 않음 |
+| `scripts/build-mobile-web.ps1` (Expo web export) | ✅ 2026-10-21 정식 모드로 재빌드 성공 → `apps/api/public/mobile/` |
 
 - 모바일 단위 테스트는 없음
 - 실행하지 않은 것: Docker(PostgreSQL/PostGIS·Redis) 기반 정식 API 기동, PostGIS 쿼리 통합 테스트, 실제 휴대폰(Expo Go) 테스트
@@ -201,7 +210,7 @@ npm run phone:start         # Expo Go로 QR 스캔
 npm run phone:stop          # 종료 시
 
 # C) 정적 웹 미리보기
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-mobile-web.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-mobile-web.ps1   # 기본 정식 모드, 로컬 모드는 -LocalStore
 # API 실행 후 http://localhost:3000/mobile/
 
 # 검증
