@@ -98,6 +98,12 @@ export interface ReceivedReview {
   itemName: string;
   reviewerNickname: string;
   createdAt: string;
+  isNew?: boolean;
+}
+
+export interface ReviewNotifications {
+  pendingReviews: number;
+  newReviews: number;
 }
 
 // 포장지 OCR 결과. allergenLabelFound가 false면 "없음"이 아니라 "확인 불가".

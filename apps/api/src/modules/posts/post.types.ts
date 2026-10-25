@@ -41,4 +41,10 @@ export interface ReceivedReview {
   itemName: string;
   reviewerNickname: string;
   createdAt: string;
+  isNew: boolean; // 후기 주인이 마지막으로 본 뒤 받은 후기
+}
+
+export interface ReviewNotifications {
+  pendingReviews: number; // 내가 남겨야 할 후기
+  newReviews: number; // 아직 안 본 받은 후기
 }

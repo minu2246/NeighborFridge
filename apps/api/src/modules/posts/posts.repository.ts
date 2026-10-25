@@ -165,6 +165,19 @@ export class PostsRepository {
     return result.rows;
   }
 
+  async countNewReviews(userId: string): Promise<number> {
+    const result = await this.pool.query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count FROM reviews r JOIN users u ON u.id = r.reviewee_id
+       WHERE r.reviewee_id = $1 AND r.created_at > u.reviews_seen_at`,
+      [userId],
+    );
+    return result.rows[0].count;
+  }
+
+  async markReviewsSeen(userId: string): Promise<void> {
+    await this.pool.query('UPDATE users SET reviews_seen_at = NOW() WHERE id = $1', [userId]);
+  }
+
   async setLike(userId: string, postId: string, liked: boolean): Promise<void> {
     await this.pool.query(
       liked
@@ -200,8 +213,10 @@ export class PostsRepository {
 
   async listReceivedReviews(userId: string): Promise<ReceivedReview[]> {
     const result = await this.pool.query<ReceivedReview & { createdAt: Date }>(
-      `SELECT r.rating, r.praises, p.item_name AS "itemName", reviewer.nickname AS "reviewerNickname", r.created_at AS "createdAt"
+      `SELECT r.rating, r.praises, p.item_name AS "itemName", reviewer.nickname AS "reviewerNickname", r.created_at AS "createdAt",
+         r.created_at > reviewee.reviews_seen_at AS "isNew"
        FROM reviews r JOIN posts p ON p.id = r.post_id JOIN users reviewer ON reviewer.id = r.reviewer_id
+         JOIN users reviewee ON reviewee.id = r.reviewee_id
        WHERE r.reviewee_id = $1
        ORDER BY r.created_at DESC
        LIMIT 20`,

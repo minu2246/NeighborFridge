@@ -108,3 +108,6 @@ CREATE TABLE IF NOT EXISTS post_likes (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, post_id)
 );
+
+-- 후기 알림: 내가 받은 후기를 마지막으로 본 시각(이후 받은 후기 = 새 후기)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS reviews_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW();

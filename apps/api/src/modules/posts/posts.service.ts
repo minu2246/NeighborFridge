@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { CreatePostDto } from './dto/create-post.dto';
 import { FindNearbyPostsDto } from './dto/find-nearby-posts.dto';
-import { NEGATIVE_PRAISES, PendingReview, POSITIVE_PRAISES, PostRecord, ReceivedReview, ReviewRating } from './post.types';
+import { NEGATIVE_PRAISES, PendingReview, POSITIVE_PRAISES, PostRecord, ReceivedReview, ReviewNotifications, ReviewRating } from './post.types';
 import { PostsRepository } from './posts.repository';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { UpdatePostStatusDto } from './dto/update-post-status.dto';
@@ -96,8 +96,16 @@ export class PostsService {
     return this.postsRepository.listPendingReviews(userId);
   }
 
-  listReceivedReviews(userId: string): Promise<ReceivedReview[]> {
-    return this.postsRepository.listReceivedReviews(userId);
+  // 내 후기를 볼 때는 읽음 처리(채팅 메시지 조회와 같은 방식). 다른 이웃 후기 조회는 읽음 처리 안 함.
+  async listReceivedReviews(userId: string, viewerId = userId): Promise<ReceivedReview[]> {
+    const reviews = await this.postsRepository.listReceivedReviews(userId);
+    if (viewerId === userId) await this.postsRepository.markReviewsSeen(userId);
+    return reviews;
+  }
+
+  async getReviewNotifications(userId: string): Promise<ReviewNotifications> {
+    const [pending, newReviews] = await Promise.all([this.postsRepository.listPendingReviews(userId), this.postsRepository.countNewReviews(userId)]);
+    return { pendingReviews: pending.length, newReviews };
   }
 
   async createReview(userId: string, postId: string, rating: ReviewRating, praises: string[] = []): Promise<void> {

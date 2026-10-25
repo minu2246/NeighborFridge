@@ -14,6 +14,8 @@ describe('PostsService', () => {
     softDelete: jest.fn(),
     hasChatWith: jest.fn(),
     createReview: jest.fn(),
+    listReceivedReviews: jest.fn(),
+    markReviewsSeen: jest.fn(),
   } as unknown as PostsRepository;
   const service = new PostsService(repository);
 
@@ -86,5 +88,13 @@ describe('PostsService', () => {
     expect(repository.createReview).toHaveBeenLastCalledWith('p', 'u', 1, ['응답이 빨라요']);
     await service.createReview('u', 'p', -1, ['불친절해요']);
     expect(repository.createReview).toHaveBeenLastCalledWith('p', 'u', -1, ['불친절해요']);
+  });
+
+  it('marks received reviews as seen only when viewing my own', async () => {
+    (repository.listReceivedReviews as jest.Mock).mockResolvedValue([]);
+    await service.listReceivedReviews('other', 'me');
+    expect(repository.markReviewsSeen).not.toHaveBeenCalled();
+    await service.listReceivedReviews('me', 'me');
+    expect(repository.markReviewsSeen).toHaveBeenCalledWith('me');
   });
 });

@@ -1,4 +1,4 @@
-import { Appointment, ChatMessage, ChatTarget, FoodPost, Neighborhood, LabelInfo, NeighborProfile, NewPostInput, PendingReview, ReceivedReview, ReviewRating, TradeType, UserStats } from '../types';
+import { Appointment, ChatMessage, ChatTarget, FoodPost, Neighborhood, LabelInfo, NeighborProfile, NewPostInput, PendingReview, ReceivedReview, ReviewNotifications, ReviewRating, TradeType, UserStats } from '../types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api';
 const SERVER_URL = API_URL.replace(/\/api\/?$/, '');
@@ -152,6 +152,12 @@ export async function submitReview(postId: string, rating: ReviewRating, praises
 export async function listReceivedReviews(userId?: string): Promise<ReceivedReview[]> {
   if (USE_LOCAL_STORE || !session) return [];
   return request(`/reviews/received${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`, { method: 'GET' });
+}
+
+// 후기 알림 배지. 로컬 모드·데모 진입은 0.
+export async function getReviewNotifications(): Promise<ReviewNotifications> {
+  if (USE_LOCAL_STORE || !session) return { pendingReviews: 0, newReviews: 0 };
+  return request('/reviews/notifications', { method: 'GET' });
 }
 
 // 다른 이웃 프로필. 로컬 모드·데모 진입은 null.

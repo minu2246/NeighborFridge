@@ -3,7 +3,7 @@ import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsUUID } from 'class-validator
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AuthenticatedUser } from '../auth/jwt.types';
-import { NEGATIVE_PRAISES, PendingReview, POSITIVE_PRAISES, ReceivedReview, REVIEW_RATINGS, ReviewRating } from './post.types';
+import { NEGATIVE_PRAISES, PendingReview, POSITIVE_PRAISES, ReceivedReview, REVIEW_RATINGS, ReviewNotifications, ReviewRating } from './post.types';
 import { PostsService } from './posts.service';
 
 class CreateReviewDto {
@@ -37,7 +37,13 @@ export class ReviewsController {
     @CurrentUser() user: AuthenticatedUser,
     @Query('userId', new ParseUUIDPipe({ optional: true })) userId?: string,
   ): Promise<ReceivedReview[]> {
-    return this.postsService.listReceivedReviews(userId ?? user.id);
+    return this.postsService.listReceivedReviews(userId ?? user.id, user.id);
+  }
+
+  // 후기 알림 배지용 개수
+  @Get('notifications')
+  getNotifications(@CurrentUser() user: AuthenticatedUser): Promise<ReviewNotifications> {
+    return this.postsService.getReviewNotifications(user.id);
   }
 
   @Post()
