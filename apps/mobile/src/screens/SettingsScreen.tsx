@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { changePassword, getMe, isLoggedIn, updateMe, USE_LOCAL_STORE } from '../api/client';
+import { changePassword, deleteAccount, getMe, isLoggedIn, updateMe, USE_LOCAL_STORE } from '../api/client';
 import { MyAccount } from '../types';
 
 // 프로필의 "알림 설정"·"계정 및 개인정보" 화면 (정식 모드 + 로그인 전용)
-export function SettingsScreen({ mode, onBack, onNicknameChange }: { mode: 'notify' | 'account'; onBack: () => void; onNicknameChange: (nickname: string) => void }) {
+export function SettingsScreen({ mode, onBack, onNicknameChange, onDeleted }: { mode: 'notify' | 'account'; onBack: () => void; onNicknameChange: (nickname: string) => void; onDeleted: () => void }) {
   const [me, setMe] = useState<MyAccount | null>(null);
   const [loadError, setLoadError] = useState('');
   const [nickname, setNickname] = useState('');
@@ -12,6 +12,8 @@ export function SettingsScreen({ mode, onBack, onNicknameChange }: { mode: 'noti
   const [newPassword, setNewPassword] = useState('');
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const available = !USE_LOCAL_STORE && isLoggedIn();
   useEffect(() => {
     if (!available) return;
@@ -25,6 +27,11 @@ export function SettingsScreen({ mode, onBack, onNicknameChange }: { mode: 'noti
   }
   const toggleReviews = (value: boolean) => run(async () => { setMe(await updateMe({ notifyReviews: value })); return value ? '거래 후기 알림을 켰어요.' : '거래 후기 알림을 껐어요.'; });
   const saveNickname = () => run(async () => { const saved = await updateMe({ nickname }); setMe(saved); setNickname(saved.nickname); onNicknameChange(saved.nickname); return '닉네임을 바꿨어요.'; });
+  async function removeAccount() {
+    setSaving(true); setMessage(null);
+    try { await deleteAccount(deletePassword); onDeleted(); }
+    catch (reason) { setMessage({ text: reason instanceof Error ? reason.message : '탈퇴하지 못했어요.', ok: false }); setConfirmDelete(false); setSaving(false); }
+  }
   const savePassword = () => run(async () => { await changePassword(currentPassword, newPassword); setCurrentPassword(''); setNewPassword(''); return '비밀번호를 바꿨어요.'; });
 
   return <ScrollView contentContainerStyle={styles.page}>
@@ -45,8 +52,12 @@ export function SettingsScreen({ mode, onBack, onNicknameChange }: { mode: 'noti
             <TextInput value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry placeholder="현재 비밀번호" placeholderTextColor="#99A69F" style={styles.input} />
             <TextInput value={newPassword} onChangeText={setNewPassword} secureTextEntry placeholder="새 비밀번호 (영문·숫자 10자 이상)" placeholderTextColor="#99A69F" style={styles.input} />
             <Pressable disabled={saving || !currentPassword || newPassword.length < 10} style={[styles.button, (saving || !currentPassword || newPassword.length < 10) && styles.disabled]} onPress={() => void savePassword()}><Text style={styles.buttonText}>비밀번호 변경</Text></Pressable></View>
+          <View style={styles.card}><Text style={styles.label}>회원 탈퇴</Text><Text style={styles.muted}>내 게시물·사진, 참여한 채팅(상대방 쪽 대화 포함), 주고받은 후기, 찜이 모두 삭제되고 되돌릴 수 없어요.</Text>
+            <TextInput value={deletePassword} onChangeText={(value) => { setDeletePassword(value); setConfirmDelete(false); }} secureTextEntry placeholder="비밀번호 확인" placeholderTextColor="#99A69F" style={styles.input} />
+            <Pressable disabled={saving || !deletePassword} style={[styles.button, styles.danger, (saving || !deletePassword) && styles.disabled]} onPress={() => confirmDelete ? void removeAccount() : setConfirmDelete(true)}><Text style={styles.buttonText}>{confirmDelete ? '정말 탈퇴하기' : '회원 탈퇴'}</Text></Pressable>
+            {confirmDelete ? <Text style={styles.bad}>한 번 더 누르면 바로 탈퇴돼요.</Text> : null}</View>
         </>}
     {message ? <Text style={message.ok ? styles.good : styles.bad}>{message.text}</Text> : null}
   </ScrollView>;
 }
-const styles = StyleSheet.create({ page: { padding: 22, paddingBottom: 110 }, back: { alignSelf: 'flex-start', paddingVertical: 9 }, backText: { color: '#426552', fontWeight: '800' }, title: { marginTop: 8, marginBottom: 14, fontSize: 24, fontWeight: '900', color: '#173C2D' }, loading: { marginTop: 30 }, card: { backgroundColor: '#FFF', borderRadius: 18, padding: 16, marginBottom: 12 }, row: { flexDirection: 'row', alignItems: 'center' }, rowCopy: { flex: 1, marginRight: 10 }, label: { color: '#385044', fontWeight: '800', marginBottom: 4 }, value: { color: '#173C2D', fontSize: 15 }, muted: { color: '#85958C', fontSize: 12 }, note: { marginTop: 12 }, input: { height: 44, borderRadius: 12, borderWidth: 1, borderColor: '#D3E1D8', paddingHorizontal: 12, marginTop: 8, color: '#173C2D', backgroundColor: '#F7FAF8' }, button: { height: 42, borderRadius: 12, backgroundColor: '#19734B', alignItems: 'center', justifyContent: 'center', marginTop: 10 }, disabled: { opacity: 0.4 }, buttonText: { color: '#FFF', fontWeight: '900' }, good: { color: '#19734B', fontWeight: '700', textAlign: 'center', marginTop: 6 }, bad: { color: '#B54C3C', fontWeight: '700', textAlign: 'center', marginTop: 6 } });
+const styles = StyleSheet.create({ page: { padding: 22, paddingBottom: 110 }, back: { alignSelf: 'flex-start', paddingVertical: 9 }, backText: { color: '#426552', fontWeight: '800' }, title: { marginTop: 8, marginBottom: 14, fontSize: 24, fontWeight: '900', color: '#173C2D' }, loading: { marginTop: 30 }, card: { backgroundColor: '#FFF', borderRadius: 18, padding: 16, marginBottom: 12 }, row: { flexDirection: 'row', alignItems: 'center' }, rowCopy: { flex: 1, marginRight: 10 }, label: { color: '#385044', fontWeight: '800', marginBottom: 4 }, value: { color: '#173C2D', fontSize: 15 }, muted: { color: '#85958C', fontSize: 12 }, note: { marginTop: 12 }, input: { height: 44, borderRadius: 12, borderWidth: 1, borderColor: '#D3E1D8', paddingHorizontal: 12, marginTop: 8, color: '#173C2D', backgroundColor: '#F7FAF8' }, button: { height: 42, borderRadius: 12, backgroundColor: '#19734B', alignItems: 'center', justifyContent: 'center', marginTop: 10 }, disabled: { opacity: 0.4 }, danger: { backgroundColor: '#B54C3C' }, buttonText: { color: '#FFF', fontWeight: '900' }, good: { color: '#19734B', fontWeight: '700', textAlign: 'center', marginTop: 6 }, bad: { color: '#B54C3C', fontWeight: '700', textAlign: 'center', marginTop: 6 } });

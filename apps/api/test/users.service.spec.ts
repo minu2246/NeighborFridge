@@ -4,7 +4,7 @@ import { UsersRepository } from '../src/modules/users/users.repository';
 import { UsersService } from '../src/modules/users/users.service';
 
 describe('UsersService', () => {
-  const repository = { updateLocation: jest.fn(), findById: jest.fn(), getStats: jest.fn(), updateProfile: jest.fn(), findPasswordHash: jest.fn(), updatePasswordHash: jest.fn() } as unknown as UsersRepository;
+  const repository = { updateLocation: jest.fn(), findById: jest.fn(), getStats: jest.fn(), updateProfile: jest.fn(), findPasswordHash: jest.fn(), updatePasswordHash: jest.fn(), deleteAccount: jest.fn() } as unknown as UsersRepository;
   const passwords = new PasswordService();
   const service = new UsersService(repository, passwords);
 
@@ -33,6 +33,15 @@ describe('UsersService', () => {
     await service.changePassword('u', { currentPassword: 'oldpass1234', newPassword: 'newpass1234' });
     const saved = (repository.updatePasswordHash as jest.Mock).mock.calls[0][1] as string;
     expect(await passwords.verify('newpass1234', saved)).toBe(true);
+  });
+
+  it('deletes the account only with the right password', async () => {
+    (repository.findPasswordHash as jest.Mock).mockResolvedValue(await passwords.hash('oldpass1234'));
+    (repository.deleteAccount as jest.Mock).mockResolvedValue(['http://x/uploads/../../.env']);
+    await expect(service.deleteAccount('u', 'wrong')).rejects.toBeInstanceOf(BadRequestException);
+    expect(repository.deleteAccount).not.toHaveBeenCalled();
+    await service.deleteAccount('u', 'oldpass1234'); // 업로드 파일명 형식이 아니면 파일은 건드리지 않음
+    expect(repository.deleteAccount).toHaveBeenCalledWith('u');
   });
 
   it('public profile hides email and location', async () => {

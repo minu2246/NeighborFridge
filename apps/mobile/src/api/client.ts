@@ -191,6 +191,12 @@ export async function changePassword(currentPassword: string, newPassword: strin
   await request('/users/me/password', { method: 'PATCH', body: JSON.stringify({ currentPassword, newPassword }) });
 }
 
+// 회원 탈퇴(되돌릴 수 없음). 성공하면 저장된 로그인도 지운다.
+export async function deleteAccount(password: string): Promise<void> {
+  await request('/users/me', { method: 'DELETE', body: JSON.stringify({ password }) });
+  await logout();
+}
+
 // 정식 모드 전용. 로컬 모드·데모 진입(토큰 없음)은 null.
 export async function getMyStats(): Promise<UserStats | null> {
   if (USE_LOCAL_STORE || !session) return null;

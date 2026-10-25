@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { rm } from 'node:fs/promises';
+import { basename, resolve } from 'node:path';
 import { PasswordService } from '../auth/password.service';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { ChangePasswordDto, UpdateMeDto } from './dto/update-me.dto';
@@ -21,11 +23,27 @@ export class UsersService {
   }
 
   async changePassword(userId: string, input: ChangePasswordDto): Promise<void> {
+    await this.verifyPassword(userId, input.currentPassword);
+    await this.usersRepository.updatePasswordHash(userId, await this.passwordService.hash(input.newPassword));
+  }
+
+  // 회원 탈퇴: 비밀번호 확인 후 DB 데이터와 게시물 사진 파일까지 삭제
+  async deleteAccount(userId: string, password: string): Promise<void> {
+    await this.verifyPassword(userId, password);
+    const imageUrls = await this.usersRepository.deleteAccount(userId);
+    const uploadRoot = resolve(process.env.LOCAL_UPLOAD_PATH ?? 'storage/uploads'); // main.ts 정적 서빙과 같은 경로
+    for (const url of imageUrls) {
+      const name = basename(url);
+      // 업로드가 만든 파일 이름(uuid.확장자)만 지운다
+      if (/^[0-9a-f-]{36}\.(jpg|png|webp)$/.test(name)) await rm(resolve(uploadRoot, name), { force: true });
+    }
+  }
+
+  private async verifyPassword(userId: string, password: string): Promise<void> {
     const hash = await this.usersRepository.findPasswordHash(userId);
-    if (!hash || !(await this.passwordService.verify(input.currentPassword, hash))) {
+    if (!hash || !(await this.passwordService.verify(password, hash))) {
       throw new BadRequestException('현재 비밀번호가 맞지 않습니다.');
     }
-    await this.usersRepository.updatePasswordHash(userId, await this.passwordService.hash(input.newPassword));
   }
 
   async getMe(userId: string): Promise<UserRecord> {

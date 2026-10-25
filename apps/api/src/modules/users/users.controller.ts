@@ -1,9 +1,9 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AuthenticatedUser } from '../auth/jwt.types';
 import { UpdateLocationDto } from './dto/update-location.dto';
-import { ChangePasswordDto, UpdateMeDto } from './dto/update-me.dto';
+import { ChangePasswordDto, DeleteAccountDto, UpdateMeDto } from './dto/update-me.dto';
 import { PublicProfile, UserRecord, UserStats } from './user.types';
 import { UsersService } from './users.service';
 
@@ -27,6 +27,13 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   changePassword(@CurrentUser() user: AuthenticatedUser, @Body() input: ChangePasswordDto): Promise<void> {
     return this.usersService.changePassword(user.id, input);
+  }
+
+  // 회원 탈퇴(되돌릴 수 없음)
+  @Delete()
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteMe(@CurrentUser() user: AuthenticatedUser, @Body() input: DeleteAccountDto): Promise<void> {
+    return this.usersService.deleteAccount(user.id, input.password);
   }
 
   @Get('stats')

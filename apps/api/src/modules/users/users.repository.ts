@@ -116,6 +116,30 @@ export class UsersRepository {
     await this.pool.query('UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1', [id, passwordHash]);
   }
 
+  // 회원 탈퇴: 이 사용자와 관련된 데이터를 모두 지운다(되돌릴 수 없음). 지운 게시물의 사진 URL을 돌려준다.
+  // 참여한 채팅방은 상대방 쪽 대화까지 함께 삭제. 다른 사람 게시물의 거래 상대 기록만 비운다.
+  async deleteAccount(id: string): Promise<string[]> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const myPosts = 'SELECT id FROM posts WHERE user_id = $1';
+      await client.query('DELETE FROM chat_messages WHERE room_id IN (SELECT id FROM chat_rooms WHERE owner_id = $1 OR requester_id = $1)', [id]);
+      await client.query(`DELETE FROM chat_rooms WHERE owner_id = $1 OR requester_id = $1 OR post_id IN (${myPosts})`, [id]);
+      await client.query(`DELETE FROM reviews WHERE reviewer_id = $1 OR reviewee_id = $1 OR post_id IN (${myPosts})`, [id]);
+      await client.query(`DELETE FROM post_likes WHERE user_id = $1 OR post_id IN (${myPosts})`, [id]);
+      await client.query('UPDATE posts SET completed_with = NULL WHERE completed_with = $1', [id]);
+      const posts = await client.query<{ image_urls: string[] }>('DELETE FROM posts WHERE user_id = $1 RETURNING image_urls', [id]);
+      await client.query('DELETE FROM users WHERE id = $1', [id]);
+      await client.query('COMMIT');
+      return posts.rows.flatMap((row) => row.image_urls);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   private mapRow(row: UserRow): UserRecord {
     return {
       id: row.id,

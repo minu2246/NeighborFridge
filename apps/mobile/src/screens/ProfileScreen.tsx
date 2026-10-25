@@ -36,7 +36,7 @@ export function ProfileScreen({ nickname, neighborhood, postCount, likedCount, o
     catch (reason) { setReviewError(reason instanceof Error ? reason.message : '후기를 저장하지 못했어요.'); }
   }
   const praiseCounts = countPraises(received);
-  if (settings) return <SettingsScreen mode={settings} onBack={() => setSettings(null)} onNicknameChange={onNicknameChange} />;
+  if (settings) return <SettingsScreen mode={settings} onBack={() => setSettings(null)} onNicknameChange={onNicknameChange} onDeleted={onLogout} />;
   const show = (value?: number) => value === undefined ? '-' : String(value);
   return <ScrollView contentContainerStyle={styles.page}><Text style={styles.title}>나의 냉장고</Text><View style={styles.profile}><View style={styles.avatar}><Text style={styles.face}>🙂</Text></View><Text style={styles.name}>{nickname ?? '둘러보는 이웃'}</Text><Text style={styles.area}>{neighborhood?.name ?? '동네 미설정'} 인증 완료 · 반경 {neighborhood?.radiusKm ?? 3}km</Text><Pressable onPress={onResetLocation}><Text style={styles.change}>동네 다시 인증하기</Text></Pressable></View>
     {stats ? <View style={styles.manner}><View style={styles.mannerTop}><Text style={styles.mannerLabel}>매너 온도</Text><Text style={styles.mannerValue}>{stats.mannerTemperature.toFixed(1)}°C {mannerFace(stats.mannerTemperature)}</Text></View><View style={styles.mannerTrack}><View style={[styles.mannerFill, { width: `${stats.mannerTemperature}%` }]} /></View><Text style={styles.mannerNote}>첫 온도 36.5°C · 받은 거래 후기 {stats.reviewCount}개</Text></View> : null}

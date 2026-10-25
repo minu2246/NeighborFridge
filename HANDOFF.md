@@ -4,19 +4,20 @@
 > Claude Code / Codex / ChatGPT 간 작업 인수인계 문서입니다. 작업 시작 시 먼저 읽고, 작업 종료 시 갱신합니다. (하단 "AI 작업 규칙" 참고)
 
 ## 0. 다음 세션 빠른 시작 (2026-10-25)
-- **현재 상태**: 상대 프로필·관심 목록(찜)·마이그레이션 실행 스크립트 구현, 커밋 `ad8dc8f`로 `origin/main`에 푸시함. 그 뒤 후기 알림 구현(아래)도 커밋·푸시함. 이어서 알림 설정·계정 설정·상세 화면 오류 표시 버그 수정(아래)도 커밋·푸시함. 서버·Docker 컨테이너는 모두 꺼 둠(Docker Desktop은 부팅 자동 시작 꺼짐)
+- **현재 상태**: 상대 프로필·관심 목록(찜)·마이그레이션 실행 스크립트 구현, 커밋 `ad8dc8f`로 `origin/main`에 푸시함. 그 뒤 후기 알림 구현(아래)도 커밋·푸시함. 이어서 알림 설정·계정 설정·상세 화면 오류 표시 버그 수정(아래)도 커밋·푸시함. 그 뒤 회원 탈퇴 구현(아래)도 커밋·푸시함. 서버·Docker 컨테이너는 모두 꺼 둠(Docker Desktop은 부팅 자동 시작 꺼짐)
 - **2026-10-25 상대 프로필**: `GET /users/:id/profile`(닉네임·동네·통계, 이메일·좌표 제외), `GET /reviews/received?userId=`(없으면 내 후기). 게시물 상세에서 작성자 줄을 누르면 `components/NeighborProfileCard.tsx`(매너 온도·칭찬 상위 3·최근 후기 3) 펼침. `ProfileScreen`의 칭찬 집계를 `countPraises`로 꺼내 공유. 채팅방 머리글의 상대 이름(▾)을 눌러도 같은 카드가 펼쳐짐(`ChatTarget.neighborId`). E2E `09-neighbor-profile.ts` 추가. 브라우저(http://localhost:8081)에서 게시물 상세·채팅방 두 곳 모두 카드 표시 확인(2026-10-25)
 - **2026-10-25 관심 목록(찜)**: 테이블 `post_likes`(`migrations/007`, `init/001`에도 추가, 개발 DB에 적용함). API `PUT·DELETE /posts/:id/like`, `GET /posts/liked`(거래 중인 찜 게시물 id, 최근 순). 앱: 상세 ♡ 버튼(내 게시물·로컬 모드·데모 진입은 비활성), 프로필 "관심 목록 N" → 홈에서 찜한 것만 보기. HomeScreen `mineOnly` → `only: 'mine' | 'liked'`로 바꿈. E2E `10-likes.ts`, 브라우저에서 찜→관심 목록 확인. 한계: 관심 목록은 지금 동네 반경 안 게시물만 보임
 - **2026-10-25 마이그레이션 실행**: `npm run db:migrate`(`scripts/db-migrate.mjs`, `pg` + `.env`의 `DATABASE_URL`). `migrations/*.sql` 중 `schema_migrations`에 없는 것을 이름순으로 트랜잭션 적용·기록, 실패 시 롤백·중단(종료 코드 1), UTF-8 BOM 제거. 확인한 것: 개발 DB 첫 실행 6개 적용→두 번째 "없음", 임시 새 DB(init/001 → migrate) 정상 후 삭제, 일부러 실패하는 임시 마이그레이션이 롤백·미기록. 개발 DB는 009까지 기록됨
 - **2026-10-25 후기 알림(앱 안, 푸시 없음)**: `users.reviews_seen_at`(`migrations/008`, `init/001`에도 추가, `db:migrate`로 개발 DB 적용). `GET /reviews/notifications` → `{ pendingReviews, newReviews }`. `GET /reviews/received`는 **내 후기를 볼 때만** 읽음 처리(다른 이웃 후기 조회는 안 함), 응답에 `isNew`. 앱: "나의 냉장고" 탭 빨간 배지 = 남길 후기 + 새 후기(탭 이동마다 갱신, 프로필 탭에 있는 동안 새 후기는 빼고 표시), 받은 후기 목록에 NEW 표시. 단위 테스트 1개 + E2E `11-review-notifications.ts`, 브라우저에서 배지 2 → 프로필 진입 시 NEW 표시·배지 1 확인. 한계: 실시간 아님(탭 이동 시에만 갱신), 휴대폰 푸시(FCM) 없음
-- **2026-10-25 계정·알림 설정 + 버그 수정**: `users.notify_reviews`(`migrations/009`, `init/001`에도 추가, 개발 DB 적용). API `PATCH /users/me`(닉네임 앞뒤 공백 제거·2자 이상, `notifyReviews`), `PATCH /users/me/password`(현재 비밀번호 확인, 회원가입과 같은 규칙), `GET /users/me`에 `notifyReviews` 포함. 후기 알림을 끄면 `GET /reviews/notifications`가 0. 앱: `screens/SettingsScreen.tsx`(프로필 메뉴 "알림 설정"·"계정 및 개인정보"), 닉네임 바꾸면 프로필·저장된 로그인 정보에 반영. 버그: 게시물 상세의 오류(찜·채팅 실패)가 작성자 관리 영역 안에만 표시돼 일반 사용자에게 안 보이던 것 → 하단 버튼 위에 표시. 단위 테스트 2개 + E2E `12-account-settings.ts`, 브라우저에서 알림 끄기→배지 사라짐, 닉네임 변경, API 끈 상태에서 찜 → 오류 표시 확인. 남은 것: 회원 탈퇴, 이메일 변경
+- **2026-10-25 계정·알림 설정 + 버그 수정**: `users.notify_reviews`(`migrations/009`, `init/001`에도 추가, 개발 DB 적용). API `PATCH /users/me`(닉네임 앞뒤 공백 제거·2자 이상, `notifyReviews`), `PATCH /users/me/password`(현재 비밀번호 확인, 회원가입과 같은 규칙), `GET /users/me`에 `notifyReviews` 포함. 후기 알림을 끄면 `GET /reviews/notifications`가 0. 앱: `screens/SettingsScreen.tsx`(프로필 메뉴 "알림 설정"·"계정 및 개인정보"), 닉네임 바꾸면 프로필·저장된 로그인 정보에 반영. 버그: 게시물 상세의 오류(찜·채팅 실패)가 작성자 관리 영역 안에만 표시돼 일반 사용자에게 안 보이던 것 → 하단 버튼 위에 표시. 단위 테스트 2개 + E2E `12-account-settings.ts`, 브라우저에서 알림 끄기→배지 사라짐, 닉네임 변경, API 끈 상태에서 찜 → 오류 표시 확인. 남은 것: 이메일 변경
+- **2026-10-25 회원 탈퇴(완전 삭제, 사용자 결정)**: `DELETE /users/me` body `{ password }`(비밀번호 확인). `UsersRepository.deleteAccount`가 한 트랜잭션에서 삭제: 참여한 채팅방·메시지(상대 쪽 대화 포함), 주고받은 후기·내 게시물에 달린 후기, 찜(내가 누른 것·내 게시물에 달린 것), 내 게시물, 사용자. 다른 사람 게시물의 `completed_with`만 NULL로 비움(게시물은 남음, 상대 매너 온도는 탈퇴자 후기만큼 되돌아감). 게시물 사진 파일도 `storage/uploads`에서 삭제(업로드 파일명 형식 `uuid.확장자`만). FK에 ON DELETE CASCADE 없음 → **사용자를 참조하는 테이블을 새로 만들면 `deleteAccount`에도 추가해야 함**. 앱: 계정 화면 맨 아래 "회원 탈퇴"(비밀번호 + 두 번 누르기) → 로그인 화면. 단위 테스트 1개 + E2E `13-delete-account.ts`, DB 고아 행 0 확인, 브라우저에서 테스트 계정 탈퇴 확인
 - **OCR 실사진 추가 채점**: 사용자가 당장 더 찍을 여건이 안 됨(2026-10-25). 현재 사진은 10/21 카톡 4장뿐 → 사진이 생기면 `storage/downloads/ocr-samples`에 넣고 정답표 + 자동 채점 작성
 - **환경 띄우기** (Windows, 루트에서)
   1. 시작 메뉴에서 Docker Desktop 실행(또는 `Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"`) → 엔진 준비까지 대기
   2. `docker compose up -d` → postgres·redis·ocr(PaddleOCR, 8866) 기동. DB 데이터는 `storage/db/postgres`에 유지. 새 마이그레이션이 있으면 `npm run db:migrate`
   3. `npm run start:api` (API 빌드 후 루트에서 `node apps/api/dist/main.js`, 자동 재시작 없음) → http://localhost:3000/api
   4. 화면: 개발용 `npm run start:web`(http://localhost:8081, 코드 수정 즉시 반영) 또는 정적 `scripts/build-mobile-web.ps1` 후 http://localhost:3000/mobile/ (코드 바꾸면 다시 빌드)
-- **검증 명령**: `npm test`(API 34개) · `npm run build` · `npm run typecheck --workspace @neighbor-fridge/mobile` · `npm run e2e`(API·Docker 켠 상태에서 `scripts/e2e/01~07`, `09`~`12`) · `npx tsx scripts/e2e/08-ocr-real-photos.ts`(로컬 실사진 필요)
+- **검증 명령**: `npm test`(API 35개) · `npm run build` · `npm run typecheck --workspace @neighbor-fridge/mobile` · `npm run e2e`(API·Docker 켠 상태에서 `scripts/e2e/01~07`, `09`~`13`) · `npx tsx scripts/e2e/08-ocr-real-photos.ts`(로컬 실사진 필요)
 - **꼭 지킬 것 (이번 작업에서 실제로 문제됐던 것)**
   - npm/npx/jest는 **루트에서만** 실행(하위 폴더에서 실행하면 그 아래 `storage/cache/npm`이 생김 — 2회 발생 후 삭제)
   - 정규식·이스케이프가 들어간 코드를 node/bash heredoc 스크립트로 쓰지 말 것 — 역슬래시가 사라진 버그 2회(약속 시간 정규식, 테스트 문자열). **Edit 도구 사용**
@@ -179,7 +180,7 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 ## 6. 테스트·빌드 상태 (2026-10-25 재실행: test·build·mobile typecheck·E2E 전체)
 | 명령 | 결과 |
 |---|---|
-| `npm test` (API Jest) | ✅ 8 suites / 34 tests 통과 (2026-10-25, 계정 설정 후) |
+| `npm test` (API Jest) | ✅ 8 suites / 35 tests 통과 (2026-10-25, 회원 탈퇴 후) |
 | `scripts/e2e/09-neighbor-profile.ts` | ✅ 통과 (2026-10-25). 같은 날 01~06도 재실행 통과, 07(OCR 컨테이너 필요)은 이번엔 미실행 |
 | `npm run e2e` (`scripts/e2e/01~07`, 앱의 `client.ts`로 정식 API 호출) | ✅ 7개 모두 통과 (2026-10-25): 두 계정 기본 흐름, 로그인 유지·닉네임, 프로필 통계, 후기·매너 온도, 무게·채팅 목록·칭찬, 빈 채팅방, 합성 라벨 OCR |
 | `scripts/e2e/08-ocr-real-photos.ts` | ✅ 실사진 4장 알레르기 4/4 (2026-10-25). 사진은 Git 제외라 로컬에만 있음 |
@@ -194,7 +195,7 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 ## 7. 주요 남은 작업
 - 정식 모드 남은 구멍 (2026-10-02 연동 후)
   - 사진 업로드가 정식 모드에서도 `/local/uploads`(인증 없음, 로컬 디스크) 사용 → 외부 배포 전 S3 호환 저장소 + 인증 업로드 필요
-  - 회원 탈퇴 없음(게시물·채팅·후기 데이터 처리 방침 필요). 탄소 절감은 무게를 입력한 게시물만 계산(추정치)
+  - 이메일 변경 없음. 탄소 절감은 무게를 입력한 게시물만 계산(추정치)
   - 게시물 좌표 = 인증한 동네 좌표(게시물별 위치 지정 없음)
   - 데모 진입(로그인 없이)은 정식 모드에서 조회만 가능
 - 소셜 로그인 미구현 (이메일만)

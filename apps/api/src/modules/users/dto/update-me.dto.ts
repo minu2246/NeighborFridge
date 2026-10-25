@@ -13,6 +13,11 @@ export class UpdateMeDto {
   notifyReviews?: boolean;
 }
 
+export class DeleteAccountDto {
+  @IsString()
+  password!: string;
+}
+
 export class ChangePasswordDto {
   @IsString()
   currentPassword!: string;

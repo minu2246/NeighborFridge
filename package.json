@@ -16,7 +16,7 @@
     "phone:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-phone-preview.ps1",
     "phone:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/stop-phone-preview.ps1",
     "db:migrate": "node scripts/db-migrate.mjs",
-    "e2e": "tsx scripts/e2e/01-basic-two-accounts.ts && tsx scripts/e2e/02-login-nickname.ts && tsx scripts/e2e/03-profile-stats.ts && tsx scripts/e2e/04-reviews-manner.ts && tsx scripts/e2e/05-weight-chat-praises.ts && tsx scripts/e2e/06-empty-chat-room.ts && tsx scripts/e2e/07-ocr-synthetic.ts && tsx scripts/e2e/09-neighbor-profile.ts && tsx scripts/e2e/10-likes.ts && tsx scripts/e2e/11-review-notifications.ts && tsx scripts/e2e/12-account-settings.ts"
+    "e2e": "tsx scripts/e2e/01-basic-two-accounts.ts && tsx scripts/e2e/02-login-nickname.ts && tsx scripts/e2e/03-profile-stats.ts && tsx scripts/e2e/04-reviews-manner.ts && tsx scripts/e2e/05-weight-chat-praises.ts && tsx scripts/e2e/06-empty-chat-room.ts && tsx scripts/e2e/07-ocr-synthetic.ts && tsx scripts/e2e/09-neighbor-profile.ts && tsx scripts/e2e/10-likes.ts && tsx scripts/e2e/11-review-notifications.ts && tsx scripts/e2e/12-account-settings.ts && tsx scripts/e2e/13-delete-account.ts"
   },
   "engines": {
     "node": ">=22"
