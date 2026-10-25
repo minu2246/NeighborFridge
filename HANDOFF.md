@@ -4,7 +4,7 @@
 > Claude Code / Codex / ChatGPT 간 작업 인수인계 문서입니다. 작업 시작 시 먼저 읽고, 작업 종료 시 갱신합니다. (하단 "AI 작업 규칙" 참고)
 
 ## 0. 다음 세션 빠른 시작 (2026-10-25)
-- **현재 상태**: 상대 프로필·관심 목록(찜)·마이그레이션 실행 스크립트 구현, 모두 미커밋. 서버·Docker 컨테이너는 모두 꺼 둠(Docker Desktop은 부팅 자동 시작 꺼짐)
+- **현재 상태**: 상대 프로필·관심 목록(찜)·마이그레이션 실행 스크립트 구현, 커밋 `ad8dc8f`로 `origin/main`에 푸시함. 다음 후보: 후기 알림(앱 안 알림 목록). 서버·Docker 컨테이너는 모두 꺼 둠(Docker Desktop은 부팅 자동 시작 꺼짐)
 - **2026-10-25 상대 프로필**: `GET /users/:id/profile`(닉네임·동네·통계, 이메일·좌표 제외), `GET /reviews/received?userId=`(없으면 내 후기). 게시물 상세에서 작성자 줄을 누르면 `components/NeighborProfileCard.tsx`(매너 온도·칭찬 상위 3·최근 후기 3) 펼침. `ProfileScreen`의 칭찬 집계를 `countPraises`로 꺼내 공유. 채팅방 머리글의 상대 이름(▾)을 눌러도 같은 카드가 펼쳐짐(`ChatTarget.neighborId`). E2E `09-neighbor-profile.ts` 추가. 브라우저(http://localhost:8081)에서 게시물 상세·채팅방 두 곳 모두 카드 표시 확인(2026-10-25)
 - **2026-10-25 관심 목록(찜)**: 테이블 `post_likes`(`migrations/007`, `init/001`에도 추가, 개발 DB에 적용함). API `PUT·DELETE /posts/:id/like`, `GET /posts/liked`(거래 중인 찜 게시물 id, 최근 순). 앱: 상세 ♡ 버튼(내 게시물·로컬 모드·데모 진입은 비활성), 프로필 "관심 목록 N" → 홈에서 찜한 것만 보기. HomeScreen `mineOnly` → `only: 'mine' | 'liked'`로 바꿈. E2E `10-likes.ts`, 브라우저에서 찜→관심 목록 확인. 한계: 관심 목록은 지금 동네 반경 안 게시물만 보임, 상세 화면 찜 실패 메시지는 일반 사용자 화면에 표시되지 않음(기존 error 표시가 작성자 관리 영역 안에만 있음)
 - **2026-10-25 마이그레이션 실행**: `npm run db:migrate`(`scripts/db-migrate.mjs`, `pg` + `.env`의 `DATABASE_URL`). `migrations/*.sql` 중 `schema_migrations`에 없는 것을 이름순으로 트랜잭션 적용·기록, 실패 시 롤백·중단(종료 코드 1), UTF-8 BOM 제거. 확인한 것: 개발 DB 첫 실행 6개 적용→두 번째 "없음", 임시 새 DB(init/001 → migrate) 정상 후 삭제, 일부러 실패하는 임시 마이그레이션이 롤백·미기록. 개발 DB는 007까지 기록됨
