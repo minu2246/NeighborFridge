@@ -116,6 +116,7 @@ PC와 휴대폰이 같은 Wi-Fi에 연결되어 있어야 합니다. 자세한 �
 npm test                                          # API 단위 테스트
 npm run build                                     # API 빌드
 npm run typecheck --workspace @neighbor-fridge/mobile
+npm run e2e                                       # 정식 모드 E2E (Docker·API 실행 중일 때)
 ```
 
 <br>

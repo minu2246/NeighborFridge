@@ -1,7 +1,24 @@
 # HANDOFF — NeighborFridge (이웃냉장고)
 
-> 마지막 갱신: 2026-10-21 · 작성: Claude Code (OCR 실사진 개선·로그인 안내까지)
+> 마지막 갱신: 2026-10-25 · 작성: Claude Code (다음 세션 인계용 정리)
 > Claude Code / Codex / ChatGPT 간 작업 인수인계 문서입니다. 작업 시작 시 먼저 읽고, 작업 종료 시 갱신합니다. (하단 "AI 작업 규칙" 참고)
+
+## 0. 다음 세션 빠른 시작 (2026-10-25)
+- **현재 상태**: 미커밋 변경 없음, `main` = `origin/main`. 서버·Docker 컨테이너는 모두 꺼 둠(Docker Desktop은 부팅 자동 시작 꺼짐)
+- **바로 할 일**: 7절 "다음 작업" 1번 — 사용자가 포장지 사진 10~15장을 `storage/downloads/ocr-samples`에 넣으면 정답표 + OCR 자동 채점 스크립트 작성. 사진이 아직 없으면 사용자에게 확인
+- **환경 띄우기** (Windows, 루트에서)
+  1. 시작 메뉴에서 Docker Desktop 실행(또는 `Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"`) → 엔진 준비까지 대기
+  2. `docker compose up -d` → postgres·redis·ocr(PaddleOCR, 8866) 기동. DB 데이터는 `storage/db/postgres`에 유지
+  3. `npm run start:api` (API 빌드 후 루트에서 `node apps/api/dist/main.js`, 자동 재시작 없음) → http://localhost:3000/api
+  4. 화면: 개발용 `npm run start:web`(http://localhost:8081, 코드 수정 즉시 반영) 또는 정적 `scripts/build-mobile-web.ps1` 후 http://localhost:3000/mobile/ (코드 바꾸면 다시 빌드)
+- **검증 명령**: `npm test`(API 30개) · `npm run build` · `npm run typecheck --workspace @neighbor-fridge/mobile` · `npm run e2e`(API·Docker 켠 상태에서 `scripts/e2e/01~07`) · `npx tsx scripts/e2e/08-ocr-real-photos.ts`(로컬 실사진 필요)
+- **꼭 지킬 것 (이번 작업에서 실제로 문제됐던 것)**
+  - npm/npx/jest는 **루트에서만** 실행(하위 폴더에서 실행하면 그 아래 `storage/cache/npm`이 생김 — 2회 발생 후 삭제)
+  - 정규식·이스케이프가 들어간 코드를 node/bash heredoc 스크립트로 쓰지 말 것 — 역슬래시가 사라진 버그 2회(약속 시간 정규식, 테스트 문자열). **Edit 도구 사용**
+  - 로그인 정보는 주소·포트마다 따로 저장(8081과 3000은 별개). "기능이 안 된다"는 제보는 로그인 여부부터 확인
+  - Expo Web을 `CI=1`로 띄우면 파일 변경 감지가 꺼져 옛 코드가 나옴
+  - 프로젝트 밖에 무언가 설치·생성하면 **먼저** `EXTERNAL_RESOURCES.json`에 기록(사용자는 종료 시 전부 삭제를 원함, 12절)
+  - `graphify-out/`은 현재 코드 기준으로 오래됨 → 사용하려면 사용자 동의 후 `/graphify . --update`
 
 ## 1. 프로젝트 개요
 - 유통기한 임박 식재료·남는 음식을 이웃끼리 나누거나 교환하는 위치 기반 C2C 서비스
@@ -32,10 +49,11 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 | `apps/mobile` | Expo SDK 57 / React Native 0.86 / React 19 (iOS·Android·Web 공용) | 구현 |
 | `apps/worker` | 만료·알림 배치 자리 | README만 존재 |
 | `packages/shared-types`, `packages/validation` | 공유 타입·검증 | README만 존재 |
-| `infra/database` | `init/001_schema.sql`, `migrations/002_add_auth_fields.sql`, `migrations/003_add_chat.sql`, `migrations/004_add_neighborhood_and_appointment.sql` | |
-| `scripts/` | 용량 점검·정리·휴대폰 미리보기·웹 빌드 PowerShell | |
+| `infra/database` | `init/001_schema.sql`(002~006 내용 포함), `migrations/002`~`006` (인증, 채팅, 동네·약속, 후기, 무게·칭찬) | |
+| `infra/ocr` | PaddleOCR 서버(Dockerfile, `server.py`) — compose `ocr` 서비스 | 구현 |
+| `scripts/` | 용량 점검·정리·휴대폰 미리보기·웹 빌드 PowerShell, `scripts/e2e/`(정식 모드 E2E 8개 + `fixtures/`) | |
 | `storage/` | 로컬 DB·업로드·캐시·런타임 (Git 제외) | |
-| `compose.yaml` | `postgis/postgis:17-3.5`, `redis:7-alpine` | |
+| `compose.yaml` | `postgis/postgis:17-3.5`, `redis:7-alpine`, `ocr`(이미지 `neighborfridge-ocr`, 2.28GB) | |
 
 ## 4. 구현된 기능
 ### API (`apps/api`)
@@ -86,7 +104,7 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 - 2026-10-03 (Claude Code): `README.md` 재작성 (개발 배경·목적·목표, 기능 진행 현황표, 기술 스택, 구조, 실행 방법, 문서 링크). 개발 배경의 1인 가구 문구는 Claude가 작성한 서술이라 사용자 검토 필요
 - 2026-10-20 (Claude Code): **정식 모드 E2E 검증 완료**
   - 환경: Docker Desktop 4.95.0 + WSL 3.0.3.0 설치·재부팅 완료, `docker compose up -d`로 PostGIS 3.5/Redis 기동, `001_schema.sql`로 테이블·신규 컬럼(`neighborhood_name`, `search_radius_km`, `meet_at`, `meet_place`) 생성 확인. 루트 `.env` 생성(Git 제외, `JWT_SECRET` 무작위)
-  - **버그 수정 1**: `npm run start:api`가 `tsx watch`로 실행돼 Nest DI 실패(`Cannot read properties of undefined (reading 'getOrThrow')`, esbuild가 데코레이터 메타데이터 미생성) + `apps/api`에서 실행돼 루트 `.env` 미인식 → 루트 `start:api`를 "API 빌드 후 루트에서 `node apps/api/dist/main.js`"로, `apps/api`의 `start:dev`도 `tsc` 빌드 후 실행으로 변경. 자동 재시작(watch)은 없음. `tsx` devDependency는 이제 미사용(제거 안 함)
+  - **버그 수정 1**: `npm run start:api`가 `tsx watch`로 실행돼 Nest DI 실패(`Cannot read properties of undefined (reading 'getOrThrow')`, esbuild가 데코레이터 메타데이터 미생성) + `apps/api`에서 실행돼 루트 `.env` 미인식 → 루트 `start:api`를 "API 빌드 후 루트에서 `node apps/api/dist/main.js`"로, `apps/api`의 `start:dev`도 `tsc` 빌드 후 실행으로 변경. 자동 재시작(watch)은 없음. `tsx`는 API 실행에는 안 쓰고 `npm run e2e`(E2E 스크립트 실행)에 사용
   - **버그 수정 2**: 약속 시간 정규식의 역슬래시 누락(10/2 작업 시 스크립트로 파일을 쓰며 발생) → 정식 API `SaveAppointmentDto`가 모든 시간을 거부, 앱 `ChatScreen`도 모든 시간을 "형식 오류" 처리하던 문제 수정. 재발 방지 테스트 `apps/api/test/save-appointment.dto.spec.ts` 추가
   - E2E: 앱의 실제 `client.ts`를 tsx로 불러와 두 계정 시나리오 12단계 통과 (가입·동네 저장/조회, 사진 포함 등록·사진 URL 접근, 자기 게시물 채팅 거부, 주변 조회 거리·D-Day·isMine, 채팅방 생성/재사용, 메시지·약속, 남의 게시물 상태 변경 거부, 상대 기준 메시지 방향, 예약중 표시, 완료 후 목록 제외, 지난 날짜 거부). Expo Web 출처 CORS 허용 확인. 스크립트는 세션 임시 폴더에만 있음(저장소 미포함)
   - 남은 테스트 데이터: 개발 DB(`storage/db/postgres`)에 테스트 계정 2개·게시물 1개, `storage/uploads/`에 1x1 PNG 1개 (정리 스크립트 대상)
@@ -152,17 +170,19 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
   5. 기울어진·굽은 사진: 글자 줄 방향 보정 켜고 측정
   - 그 외: 휴대폰 미리보기(`phone:start`) 정식 모드 지원, 외부 배포(OCR 서버 자원 고려), 소셜 로그인·푸시 알림
 
-## 6. 테스트·빌드 상태 (2026-10-21 재실행: test·build·mobile typecheck / 웹 export는 2026-10-01 결과)
+## 6. 테스트·빌드 상태 (2026-10-25 재실행: test·build·mobile typecheck·E2E 전체)
 | 명령 | 결과 |
 |---|---|
-| `npm test` (API Jest) | ✅ 8 suites / 30 tests 통과 (2026-10-21) |
-| 정식 모드 E2E (Docker PostGIS, `client.ts` 사용, 세션 임시 폴더의 스크립트) | ✅ 기본 12 + 프로필/로그인 9 + 통계 5 + 후기 13 + OCR 6 + 무게·채팅·후기확장 12 + 빈 채팅방 8단계 + 실사진 OCR 4장(원본·압축) 통과 (2026-10-21) |
+| `npm test` (API Jest) | ✅ 8 suites / 30 tests 통과 (2026-10-25) |
+| `npm run e2e` (`scripts/e2e/01~07`, 앱의 `client.ts`로 정식 API 호출) | ✅ 7개 모두 통과 (2026-10-25): 두 계정 기본 흐름, 로그인 유지·닉네임, 프로필 통계, 후기·매너 온도, 무게·채팅 목록·칭찬, 빈 채팅방, 합성 라벨 OCR |
+| `scripts/e2e/08-ocr-real-photos.ts` | ✅ 실사진 4장 알레르기 4/4 (2026-10-25). 사진은 Git 제외라 로컬에만 있음 |
 | `npm run build` (API `tsc`) | ✅ 오류 없음 → `apps/api/dist/` |
 | `npm run typecheck --workspace @neighbor-fridge/mobile` | ✅ 오류 없음 |
 | `scripts/build-mobile-web.ps1` (Expo web export) | ✅ 2026-10-21 정식 모드로 재빌드 성공 → `apps/api/public/mobile/` |
 
 - 모바일 단위 테스트는 없음
-- 실행하지 않은 것: Docker(PostgreSQL/PostGIS·Redis) 기반 정식 API 기동, PostGIS 쿼리 통합 테스트, 실제 휴대폰(Expo Go) 테스트
+- 실행하지 않은 것: 실제 휴대폰(Expo Go)에서 정식 모드 테스트(`phone:start`는 로컬 모드), 앱 화면 자동 UI 테스트(브라우저 자동화로 사진 선택 창을 열 수 없음)
+- E2E는 실행할 때마다 개발 DB에 테스트 계정·게시물을 만든다(정리 스크립트로 `storage/db/` 삭제 시 함께 사라짐)
 
 ## 7. 주요 남은 작업
 - 정식 모드 남은 구멍 (2026-10-02 연동 후)
@@ -183,14 +203,14 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 - 외부 배포 미진행: **앱 기능 구현 완료 후 시작하기로 결정(2026-10-02)**. 계획: 클라우드 Postgres(Neon/Supabase) → API 배포(Render/Railway/Fly.io) → 사진 저장소 분리(R2/Supabase Storage) → 모바일 API 주소 변경
 
 ## 8. 알려진 문제·주의사항
-- **마이그레이션**: `compose.yaml`은 `infra/database/init`만 마운트 → `migrations/*`는 자동 적용되지 않음. 새 DB는 `001`에 002~004 내용이 이미 포함됨, 기존 DB만 `004` 등 수동 적용
+- **마이그레이션**: `compose.yaml`은 `infra/database/init`만 마운트 → `migrations/*`는 자동 적용되지 않음. 새 DB는 `001`에 002~006 내용이 이미 포함됨. 기존 DB에는 새 마이그레이션을 `docker exec -i neighborfridge-postgres-1 psql -U neighbor_fridge -d neighbor_fridge < 파일`로 수동 적용(현재 개발 DB는 006까지 적용됨)
 - **`LOCAL_UPLOAD_PATH`**: `main.ts`가 `join(cwd, 값)`으로 처리해 절대경로를 넣으면 기동 실패. 상대경로만 사용
 - **로컬 저장 모드 한계**: `LocalPost`는 항상 `isMine: true`(작성자 소유권 없음), 거리·D-Day를 문자열로 저장. 개발 전용이며 운영에서는 끈다
 - **`DatabaseModule`**: `DATABASE_URL` 미설정 시 기동 실패(`getOrThrow`). 로컬 모드에서도 값 필요
-- **CORS**: 로컬 모드에서만 localhost·`192.168.*` 출처 허용
+- **CORS**: 로컬 모드 또는 `NODE_ENV=development`에서 localhost·`192.168.*` 출처 허용
 - **JSON body 25MB**: base64 이미지 업로드 때문
 - **비밀값**: `scripts/start-phone-preview.ps1`에 로컬 개발용 `JWT_SECRET`·DB 접속값이 하드코딩됨. 운영 값으로 사용 금지, 분리 검토 필요
-- **`.env` 없음**: 정식 API 실행 시 `.env.example`을 복사해 직접 채워야 함
+- **`.env`**: 루트에 있음(Git 제외, 2026-10-20 생성, `OCR_URL` 포함). 새 PC에서는 `.env.example`을 복사해 채움
 - **로컬 잔여물**: `storage/runtime/`(api.pid·로그·Expo 홈), `storage/uploads/` 이미지 3개, `storage/db/` SQLite. `api.pid`가 가리키는 프로세스가 실행 중인지는 미확인 → 필요 시 `npm run phone:stop`
 - 일부 커밋 author가 `CodexSandboxOffline`(Codex 환경)으로 기록됨
 
@@ -198,10 +218,10 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 ```powershell
 npm install
 
-# A) 정식 모드 (Docker 필요)
+# A) 정식 모드 (Docker 필요 — Docker Desktop을 먼저 실행)
 copy .env.example .env      # 값 채우기 (비밀값은 Git에 올리지 않음)
 docker compose up -d        # DB·Redis·사진 OCR 서버(첫 빌드 몇 분)
-npm run start:api           # http://localhost:3000/api
+npm run start:api           # 빌드 후 실행, http://localhost:3000/api
 npm run start:web           # Expo Web
 
 # B) Docker 없이 휴대폰 테스트 (로컬 SQLite 모드)
@@ -217,6 +237,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-mobile-web.p
 npm test
 npm run build
 npm run typecheck --workspace @neighbor-fridge/mobile
+npm run e2e                 # API·Docker 켠 상태
 
 # 용량 점검 (삭제하지 않음)
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\audit-storage.ps1
