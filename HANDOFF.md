@@ -17,6 +17,12 @@
   3. **모바일 테스트**: 새 의존성 없이 `node:test` + `tsx`. 화면 파일은 react-native를 불러와 Node에서 못 돌리므로 순수 로직을 `src/lib/{posts,reviews,chat}.ts`로 옮김(중복이던 `displayDDay` 2개 → 1개). `apps/mobile`의 `npm test` = `tsx --test src/lib/lib.test.ts`, 루트 `npm test`가 API + 모바일 모두 실행
   4. **작은 개선**: (a) 관심 목록은 반경과 무관 — `GET /posts/liked?latitude&longitude`가 게시물(거리 포함)을 돌려주고, 앱이 반경 밖 찜 게시물을 합쳐 관심 목록에서만 보여 줌(`filterPosts`). (b) 등록 화면 "지금 위치로"(expo-location) → 그 좌표로 등록, 서버는 인증한 동네 10km 이내만 허용(`MAX_POST_DISTANCE_KM`). (c) 탭 배지 30초마다 자동 갱신. E2E `15-post-location-liked.ts`
   - 검증: API 37 + 모바일 4 단위 테스트, 빌드, 타입체크, E2E 01~15 전부(08 실사진 포함) 통과. 브라우저: 채팅 배지 3 → 제안 수락 → 확정 표시, 등록 화면 위치 버튼·계정 화면 이메일 칸 배치 확인. "지금 위치로"는 브라우저 위치 권한 팝업 때문에 직접 누르지 않음(E2E로 좌표 등록 검증)
+- **다음 작업: 배포 준비(1단계, 아직 코드 변경 없음)** — 조사만 끝냄. 계획:
+  1. **보안 문제(먼저)**: `LocalStoreModule`(`/api/local/*`: 가입·게시물·업로드, 인증 없음)이 정식 모드에서도 항상 열려 있음, 정식 모드 사진 업로드도 `/local/uploads` 사용(`client.ts` `uploadImage`). → 인증된 `POST /api/uploads` 신설 후 `AppModule`에서 `LOCAL_STORE_ENABLED==='true'`일 때만 `LocalStoreModule` 포함
+  2. `uploads` 모듈 `MediaStorage`: base64 검증(현 `LocalStoreService.saveImage` 로직 이동) → `.env`의 `S3_ENDPOINT·S3_REGION·S3_BUCKET·S3_ACCESS_KEY_ID·S3_SECRET_ACCESS_KEY·S3_PUBLIC_URL`이 모두 있으면 R2(S3 호환, SigV4를 `node:crypto`로 직접 구현, 새 의존성 없음), 없으면 디스크. 삭제도 담당 → `UsersService.deleteAccount` 파일 삭제를 이걸로 교체. 앱은 절대 URL이면 `SERVER_URL`을 붙이지 않게
+  3. 검증용 MinIO 컨테이너를 쓰려면 **먼저 `EXTERNAL_RESOURCES.json`에 기록**
+  4. `db:migrate`: `users` 테이블이 없으면 `init/001` 먼저 적용(Neon 같은 빈 DB용)
+  5. `CORS_ORIGINS` 환경 변수, Render용 `render.yaml`(빌드 `npm ci && npm run build`, 시작 `npm run db:migrate && node apps/api/dist/main.js`). OCR 서버(2.3GB)는 무료 등급에 안 맞아 처음엔 제외
 - **OCR 실사진 추가 채점**: 사용자가 당장 더 찍을 여건이 안 됨(2026-10-25). 현재 사진은 10/21 카톡 4장뿐 → 사진이 생기면 `storage/downloads/ocr-samples`에 넣고 정답표 + 자동 채점 작성
 - **환경 띄우기** (Windows, 루트에서)
   1. 시작 메뉴에서 Docker Desktop 실행(또는 `Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"`) → 엔진 준비까지 대기
