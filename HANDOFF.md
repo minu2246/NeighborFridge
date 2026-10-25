@@ -4,14 +4,17 @@
 > Claude Code / Codex / ChatGPT 간 작업 인수인계 문서입니다. 작업 시작 시 먼저 읽고, 작업 종료 시 갱신합니다. (하단 "AI 작업 규칙" 참고)
 
 ## 0. 다음 세션 빠른 시작 (2026-10-25)
-- **현재 상태**: 미커밋 변경 없음, `main` = `origin/main`. 서버·Docker 컨테이너는 모두 꺼 둠(Docker Desktop은 부팅 자동 시작 꺼짐)
-- **바로 할 일**: 7절 "다음 작업" 1번 — 사용자가 포장지 사진 10~15장을 `storage/downloads/ocr-samples`에 넣으면 정답표 + OCR 자동 채점 스크립트 작성. 사진이 아직 없으면 사용자에게 확인
+- **현재 상태**: 상대 프로필·관심 목록(찜)·마이그레이션 실행 스크립트 구현, 모두 미커밋. 서버·Docker 컨테이너는 모두 꺼 둠(Docker Desktop은 부팅 자동 시작 꺼짐)
+- **2026-10-25 상대 프로필**: `GET /users/:id/profile`(닉네임·동네·통계, 이메일·좌표 제외), `GET /reviews/received?userId=`(없으면 내 후기). 게시물 상세에서 작성자 줄을 누르면 `components/NeighborProfileCard.tsx`(매너 온도·칭찬 상위 3·최근 후기 3) 펼침. `ProfileScreen`의 칭찬 집계를 `countPraises`로 꺼내 공유. 채팅방 머리글의 상대 이름(▾)을 눌러도 같은 카드가 펼쳐짐(`ChatTarget.neighborId`). E2E `09-neighbor-profile.ts` 추가. 브라우저(http://localhost:8081)에서 게시물 상세·채팅방 두 곳 모두 카드 표시 확인(2026-10-25)
+- **2026-10-25 관심 목록(찜)**: 테이블 `post_likes`(`migrations/007`, `init/001`에도 추가, 개발 DB에 적용함). API `PUT·DELETE /posts/:id/like`, `GET /posts/liked`(거래 중인 찜 게시물 id, 최근 순). 앱: 상세 ♡ 버튼(내 게시물·로컬 모드·데모 진입은 비활성), 프로필 "관심 목록 N" → 홈에서 찜한 것만 보기. HomeScreen `mineOnly` → `only: 'mine' | 'liked'`로 바꿈. E2E `10-likes.ts`, 브라우저에서 찜→관심 목록 확인. 한계: 관심 목록은 지금 동네 반경 안 게시물만 보임, 상세 화면 찜 실패 메시지는 일반 사용자 화면에 표시되지 않음(기존 error 표시가 작성자 관리 영역 안에만 있음)
+- **2026-10-25 마이그레이션 실행**: `npm run db:migrate`(`scripts/db-migrate.mjs`, `pg` + `.env`의 `DATABASE_URL`). `migrations/*.sql` 중 `schema_migrations`에 없는 것을 이름순으로 트랜잭션 적용·기록, 실패 시 롤백·중단(종료 코드 1), UTF-8 BOM 제거. 확인한 것: 개발 DB 첫 실행 6개 적용→두 번째 "없음", 임시 새 DB(init/001 → migrate) 정상 후 삭제, 일부러 실패하는 임시 마이그레이션이 롤백·미기록. 개발 DB는 007까지 기록됨
+- **OCR 실사진 추가 채점**: 사용자가 당장 더 찍을 여건이 안 됨(2026-10-25). 현재 사진은 10/21 카톡 4장뿐 → 사진이 생기면 `storage/downloads/ocr-samples`에 넣고 정답표 + 자동 채점 작성
 - **환경 띄우기** (Windows, 루트에서)
   1. 시작 메뉴에서 Docker Desktop 실행(또는 `Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"`) → 엔진 준비까지 대기
-  2. `docker compose up -d` → postgres·redis·ocr(PaddleOCR, 8866) 기동. DB 데이터는 `storage/db/postgres`에 유지
+  2. `docker compose up -d` → postgres·redis·ocr(PaddleOCR, 8866) 기동. DB 데이터는 `storage/db/postgres`에 유지. 새 마이그레이션이 있으면 `npm run db:migrate`
   3. `npm run start:api` (API 빌드 후 루트에서 `node apps/api/dist/main.js`, 자동 재시작 없음) → http://localhost:3000/api
   4. 화면: 개발용 `npm run start:web`(http://localhost:8081, 코드 수정 즉시 반영) 또는 정적 `scripts/build-mobile-web.ps1` 후 http://localhost:3000/mobile/ (코드 바꾸면 다시 빌드)
-- **검증 명령**: `npm test`(API 30개) · `npm run build` · `npm run typecheck --workspace @neighbor-fridge/mobile` · `npm run e2e`(API·Docker 켠 상태에서 `scripts/e2e/01~07`) · `npx tsx scripts/e2e/08-ocr-real-photos.ts`(로컬 실사진 필요)
+- **검증 명령**: `npm test`(API 31개) · `npm run build` · `npm run typecheck --workspace @neighbor-fridge/mobile` · `npm run e2e`(API·Docker 켠 상태에서 `scripts/e2e/01~07`, `09`, `10`) · `npx tsx scripts/e2e/08-ocr-real-photos.ts`(로컬 실사진 필요)
 - **꼭 지킬 것 (이번 작업에서 실제로 문제됐던 것)**
   - npm/npx/jest는 **루트에서만** 실행(하위 폴더에서 실행하면 그 아래 `storage/cache/npm`이 생김 — 2회 발생 후 삭제)
   - 정규식·이스케이프가 들어간 코드를 node/bash heredoc 스크립트로 쓰지 말 것 — 역슬래시가 사라진 버그 2회(약속 시간 정규식, 테스트 문자열). **Edit 도구 사용**
@@ -49,7 +52,7 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 | `apps/mobile` | Expo SDK 57 / React Native 0.86 / React 19 (iOS·Android·Web 공용) | 구현 |
 | `apps/worker` | 만료·알림 배치 자리 | README만 존재 |
 | `packages/shared-types`, `packages/validation` | 공유 타입·검증 | README만 존재 |
-| `infra/database` | `init/001_schema.sql`(002~006 내용 포함), `migrations/002`~`006` (인증, 채팅, 동네·약속, 후기, 무게·칭찬) | |
+| `infra/database` | `init/001_schema.sql`(002~007 내용 포함), `migrations/002`~`007` (인증, 채팅, 동네·약속, 후기, 무게·칭찬, 찜) | |
 | `infra/ocr` | PaddleOCR 서버(Dockerfile, `server.py`) — compose `ocr` 서비스 | 구현 |
 | `scripts/` | 용량 점검·정리·휴대폰 미리보기·웹 빌드 PowerShell, `scripts/e2e/`(정식 모드 E2E 8개 + `fixtures/`) | |
 | `storage/` | 로컬 DB·업로드·캐시·런타임 (Git 제외) | |
@@ -73,7 +76,8 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 - 사용자 통계: `GET /users/me/stats` → 나눔 완료·나눔 중·대화한 이웃·매너 온도·받은 후기 수
 - 거래 후기: 완료 시 거래 상대 지정(`completedWith`), `GET /reviews/pending`, `POST /reviews` (매너 온도 36.5°C 시작, +0.2/+0.1/-0.3)
 - 포장지 OCR: `POST /ocr/label` → compose `ocr` 서비스(PaddleOCR, `infra/ocr`) 인식 + 규칙 해석 `modules/ocr/label-parser.ts`
-- 게시물 무게(`weightGrams`)·탄소 절감 추정, 채팅 목록 마지막 메시지·안 읽은 수(읽음 처리), 후기 칭찬 항목·받은 후기(`GET /reviews/received`)
+- 게시물 무게(`weightGrams`)·탄소 절감 추정, 채팅 목록 마지막 메시지·안 읽은 수(읽음 처리), 후기 칭찬 항목·받은 후기(`GET /reviews/received`, `?userId=`로 다른 이웃 후기)
+- 다른 이웃 프로필: `GET /users/:id/profile` (닉네임·동네·통계, 이메일·좌표 제외)
 
 ### Mobile (`apps/mobile`)
 - 화면: 인증(데모 진입 포함), 위치(동네 인증/직접 입력), 홈(필터·정렬·내 게시물), 등록(사진 선택, 소비기한 `DatePickerModal`), 게시물 상세(작성자 상태 변경), 채팅(거래 약속 배너·입력 폼), 프로필
@@ -173,7 +177,8 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 ## 6. 테스트·빌드 상태 (2026-10-25 재실행: test·build·mobile typecheck·E2E 전체)
 | 명령 | 결과 |
 |---|---|
-| `npm test` (API Jest) | ✅ 8 suites / 30 tests 통과 (2026-10-25) |
+| `npm test` (API Jest) | ✅ 8 suites / 31 tests 통과 (2026-10-25, 상대 프로필 후) |
+| `scripts/e2e/09-neighbor-profile.ts` | ✅ 통과 (2026-10-25). 같은 날 01~06도 재실행 통과, 07(OCR 컨테이너 필요)은 이번엔 미실행 |
 | `npm run e2e` (`scripts/e2e/01~07`, 앱의 `client.ts`로 정식 API 호출) | ✅ 7개 모두 통과 (2026-10-25): 두 계정 기본 흐름, 로그인 유지·닉네임, 프로필 통계, 후기·매너 온도, 무게·채팅 목록·칭찬, 빈 채팅방, 합성 라벨 OCR |
 | `scripts/e2e/08-ocr-real-photos.ts` | ✅ 실사진 4장 알레르기 4/4 (2026-10-25). 사진은 Git 제외라 로컬에만 있음 |
 | `npm run build` (API `tsc`) | ✅ 오류 없음 → `apps/api/dist/` |
@@ -187,7 +192,7 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 ## 7. 주요 남은 작업
 - 정식 모드 남은 구멍 (2026-10-02 연동 후)
   - 사진 업로드가 정식 모드에서도 `/local/uploads`(인증 없음, 로컬 디스크) 사용 → 외부 배포 전 S3 호환 저장소 + 인증 업로드 필요
-  - 프로필의 관심 목록·알림 설정·계정 메뉴는 고정 값/미구현. 탄소 절감은 무게를 입력한 게시물만 계산(추정치)
+  - 프로필의 알림 설정·계정 메뉴는 미구현. 탄소 절감은 무게를 입력한 게시물만 계산(추정치)
   - 게시물 좌표 = 인증한 동네 좌표(게시물별 위치 지정 없음)
   - 데모 진입(로그인 없이)은 정식 모드에서 조회만 가능
 - 소셜 로그인 미구현 (이메일만)
@@ -195,15 +200,14 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 - 푸시 알림(FCM)·만료 임박 알림 미구현
 - `apps/worker`, `packages/*` 비어 있음
 - Redis Pub/Sub 미사용 (문서상 계획). 채팅 이벤트는 단일 프로세스 메모리 전달
-- DB 마이그레이션 실행 체계 없음 (아래 주의사항)
 - 모바일 테스트 부재
 - 거래 약속: 로컬·정식 모두 구현(2026-10-02). 약속 알림·상대방 수락 흐름 없음
 - 사진 자동 작성: PaddleOCR로 교체(2026-10-21, 5절). 남은 것 — 더 많은 실사진으로 규칙 보강, 상품명 한 글자 오인식, 속도(5~6초, mkldnn 버그로 CPU 가속 꺼짐), 알레르기 구조화 저장(지금은 설명 텍스트), 외부 배포 시 OCR 서버 자원(이미지 2.3GB·메모리 약 0.4GB 이상) 고려. 유료 AI API는 사용자 결정으로 사용 안 함
-- 거래 후기: 후기 알림, 다른 사람 프로필에서 매너 온도·칭찬 보기(지금은 내 프로필만)
+- 거래 후기: 후기 알림 미구현
 - 외부 배포 미진행: **앱 기능 구현 완료 후 시작하기로 결정(2026-10-02)**. 계획: 클라우드 Postgres(Neon/Supabase) → API 배포(Render/Railway/Fly.io) → 사진 저장소 분리(R2/Supabase Storage) → 모바일 API 주소 변경
 
 ## 8. 알려진 문제·주의사항
-- **마이그레이션**: `compose.yaml`은 `infra/database/init`만 마운트 → `migrations/*`는 자동 적용되지 않음. 새 DB는 `001`에 002~006 내용이 이미 포함됨. 기존 DB에는 새 마이그레이션을 `docker exec -i neighborfridge-postgres-1 psql -U neighbor_fridge -d neighbor_fridge < 파일`로 수동 적용(현재 개발 DB는 006까지 적용됨)
+- **마이그레이션**: `compose.yaml`은 `infra/database/init`만 마운트 → `migrations/*`는 자동 적용되지 않음. 새 DB는 `001`에 002~007 내용이 이미 포함됨. 기존 DB에는 `npm run db:migrate`로 적용(현재 개발 DB는 007까지 기록됨). 새 DB는 처음 실행 때 001에 이미 들어간 마이그레이션도 다시 돌므로 **마이그레이션은 `IF NOT EXISTS` 등으로 재실행해도 안전하게 작성**하고, 새 마이그레이션 내용은 `init/001`에도 추가. API 시작 시 자동 실행은 하지 않음(배포 시 배포 전 단계에서 실행)
 - **`LOCAL_UPLOAD_PATH`**: `main.ts`가 `join(cwd, 값)`으로 처리해 절대경로를 넣으면 기동 실패. 상대경로만 사용
 - **로컬 저장 모드 한계**: `LocalPost`는 항상 `isMine: true`(작성자 소유권 없음), 거리·D-Day를 문자열로 저장. 개발 전용이며 운영에서는 끈다
 - **`DatabaseModule`**: `DATABASE_URL` 미설정 시 기동 실패(`getOrThrow`). 로컬 모드에서도 값 필요

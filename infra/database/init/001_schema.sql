@@ -100,3 +100,11 @@ CREATE INDEX IF NOT EXISTS idx_reviews_reviewee ON reviews (reviewee_id);
 
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS weight_grams INTEGER CHECK (weight_grams > 0);
 ALTER TABLE reviews ADD COLUMN IF NOT EXISTS praises TEXT[] NOT NULL DEFAULT '{}';
+
+-- 관심 목록(찜)
+CREATE TABLE IF NOT EXISTS post_likes (
+  user_id UUID NOT NULL REFERENCES users(id),
+  post_id UUID NOT NULL REFERENCES posts(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, post_id)
+);

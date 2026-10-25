@@ -1,4 +1,4 @@
-import { Appointment, ChatMessage, ChatTarget, FoodPost, Neighborhood, LabelInfo, NewPostInput, PendingReview, ReceivedReview, ReviewRating, TradeType, UserStats } from '../types';
+import { Appointment, ChatMessage, ChatTarget, FoodPost, Neighborhood, LabelInfo, NeighborProfile, NewPostInput, PendingReview, ReceivedReview, ReviewRating, TradeType, UserStats } from '../types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api';
 const SERVER_URL = API_URL.replace(/\/api\/?$/, '');
@@ -96,7 +96,7 @@ function toFoodPost(post: ApiPost): FoodPost {
     distance: `${(post.distanceKm ?? 0).toFixed(1)}km`, dDay: post.dDay === undefined ? post.expiryDate : post.dDay === 0 ? '오늘' : `D-${post.dDay}`,
     place: post.placeName ?? '', color: '#E6F4DE', expiryDate: post.expiryDate, status: post.status,
     imageUrl: post.imageUrls[0], isMine: post.userId === session?.userId,
-    description: post.description ?? undefined, authorName: post.authorNickname, weightGrams: post.weightGrams ?? undefined,
+    description: post.description ?? undefined, authorName: post.authorNickname, authorId: post.userId, weightGrams: post.weightGrams ?? undefined,
   };
 }
 
@@ -129,6 +129,16 @@ export async function listPostChatPartners(postId: string): Promise<{ userId: st
   return rooms.filter((room) => room.postId === postId && room.ownerId === session?.userId).map((room) => ({ userId: room.requesterId, nickname: room.partnerNickname ?? '이웃' }));
 }
 
+// 관심 목록(찜). 정식 모드 + 로그인 전용, 그 외는 빈 목록.
+export async function listLikedPostIds(): Promise<string[]> {
+  if (USE_LOCAL_STORE || !session) return [];
+  return request('/posts/liked', { method: 'GET' });
+}
+
+export async function setPostLiked(postId: string, liked: boolean): Promise<void> {
+  await request(`/posts/${encodeURIComponent(postId)}/like`, { method: liked ? 'PUT' : 'DELETE' });
+}
+
 export async function listPendingReviews(): Promise<PendingReview[]> {
   if (USE_LOCAL_STORE || !session) return [];
   return request('/reviews/pending', { method: 'GET' });
@@ -138,9 +148,16 @@ export async function submitReview(postId: string, rating: ReviewRating, praises
   await request('/reviews', { method: 'POST', body: JSON.stringify({ postId, rating, praises }) });
 }
 
-export async function listReceivedReviews(): Promise<ReceivedReview[]> {
+// userId 없으면 내가 받은 후기
+export async function listReceivedReviews(userId?: string): Promise<ReceivedReview[]> {
   if (USE_LOCAL_STORE || !session) return [];
-  return request('/reviews/received', { method: 'GET' });
+  return request(`/reviews/received${userId ? `?userId=${encodeURIComponent(userId)}` : ''}`, { method: 'GET' });
+}
+
+// 다른 이웃 프로필. 로컬 모드·데모 진입은 null.
+export async function getUserProfile(userId: string): Promise<NeighborProfile | null> {
+  if (USE_LOCAL_STORE || !session) return null;
+  return request(`/users/${encodeURIComponent(userId)}/profile`, { method: 'GET' });
 }
 
 export async function getNeighborhood(): Promise<Neighborhood | null> {
@@ -167,12 +184,12 @@ export async function openChatRoom(post: FoodPost): Promise<ChatTarget> {
   const target = { item: post.name, emoji: post.emoji, neighborName: post.authorName ?? '게시물 이웃' };
   if (USE_LOCAL_STORE) return { roomId: `post-${post.id}`, ...target };
   const room = await request<{ id: string }>('/chats/rooms', { method: 'POST', body: JSON.stringify({ postId: post.id }) });
-  return { roomId: room.id, ...target };
+  return { roomId: room.id, ...target, neighborId: post.authorId };
 }
 
 export async function listChatRooms(): Promise<ChatTarget[]> {
-  const rooms = await request<{ id: string; postTitle: string; ownerId: string; partnerNickname?: string; lastMessage?: string; lastMessageAt?: string; unreadCount?: number }[]>('/chats/rooms', { method: 'GET' });
-  return rooms.map((room) => ({ roomId: room.id, item: room.postTitle, emoji: '🥕', neighborName: room.partnerNickname ?? (room.ownerId === session?.userId ? '문의한 이웃' : '게시물 이웃'), lastMessage: room.lastMessage, lastMessageAt: room.lastMessageAt, unread: room.unreadCount }));
+  const rooms = await request<{ id: string; postTitle: string; ownerId: string; requesterId: string; partnerNickname?: string; lastMessage?: string; lastMessageAt?: string; unreadCount?: number }[]>('/chats/rooms', { method: 'GET' });
+  return rooms.map((room) => ({ roomId: room.id, item: room.postTitle, emoji: '🥕', neighborName: room.partnerNickname ?? (room.ownerId === session?.userId ? '문의한 이웃' : '게시물 이웃'), neighborId: room.ownerId === session?.userId ? room.requesterId : room.ownerId, lastMessage: room.lastMessage, lastMessageAt: room.lastMessageAt, unread: room.unreadCount }));
 }
 
 const roomPath = (roomId: string) => `/${USE_LOCAL_STORE ? 'local' : 'chats'}/rooms/${encodeURIComponent(roomId)}`;

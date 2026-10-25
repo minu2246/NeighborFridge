@@ -83,6 +83,15 @@ export class PostsService {
     return updated;
   }
 
+  async setLike(userId: string, postId: string, liked: boolean): Promise<void> {
+    if (liked) await this.getById(postId); // 없는 게시물이면 404
+    await this.postsRepository.setLike(userId, postId, liked);
+  }
+
+  listLikedPostIds(userId: string): Promise<string[]> {
+    return this.postsRepository.listLikedPostIds(userId);
+  }
+
   listPendingReviews(userId: string): Promise<PendingReview[]> {
     return this.postsRepository.listPendingReviews(userId);
   }

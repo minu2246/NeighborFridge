@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsUUID } from 'class-validator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -31,10 +31,13 @@ export class ReviewsController {
     return this.postsService.listPendingReviews(user.id);
   }
 
-  // 내가 받은 후기(최근 20개)
+  // 받은 후기(최근 20개). userId 없으면 내 후기, 있으면 그 이웃의 후기
   @Get('received')
-  listReceived(@CurrentUser() user: AuthenticatedUser): Promise<ReceivedReview[]> {
-    return this.postsService.listReceivedReviews(user.id);
+  listReceived(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('userId', new ParseUUIDPipe({ optional: true })) userId?: string,
+  ): Promise<ReceivedReview[]> {
+    return this.postsService.listReceivedReviews(userId ?? user.id);
   }
 
   @Post()

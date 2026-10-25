@@ -3,7 +3,7 @@ import { UsersRepository } from '../src/modules/users/users.repository';
 import { UsersService } from '../src/modules/users/users.service';
 
 describe('UsersService', () => {
-  const repository = { updateLocation: jest.fn(), findById: jest.fn() } as unknown as UsersRepository;
+  const repository = { updateLocation: jest.fn(), findById: jest.fn(), getStats: jest.fn() } as unknown as UsersRepository;
   const service = new UsersService(repository);
 
   beforeEach(() => jest.clearAllMocks());
@@ -17,5 +17,11 @@ describe('UsersService', () => {
   it('returns not found when the user no longer exists', async () => {
     (repository.findById as jest.Mock).mockResolvedValue(null);
     await expect(service.getMe('missing')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('public profile hides email and location', async () => {
+    (repository.findById as jest.Mock).mockResolvedValue({ id: 'user-2', email: 'a@b.c', nickname: '이웃', neighborhoodName: '중구', latitude: 37.5, longitude: 127 });
+    (repository.getStats as jest.Mock).mockResolvedValue({ mannerTemperature: 36.7, reviewCount: 1 });
+    expect(await service.getProfile('user-2')).toEqual({ id: 'user-2', nickname: '이웃', neighborhoodName: '중구', mannerTemperature: 36.7, reviewCount: 1 });
   });
 });

@@ -1,9 +1,9 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AuthenticatedUser } from '../auth/jwt.types';
 import { UpdateLocationDto } from './dto/update-location.dto';
-import { UserRecord, UserStats } from './user.types';
+import { PublicProfile, UserRecord, UserStats } from './user.types';
 import { UsersService } from './users.service';
 
 @Controller('users/me')
@@ -27,5 +27,17 @@ export class UsersController {
     @Body() input: UpdateLocationDto,
   ): Promise<UserRecord> {
     return this.usersService.updateMyLocation(user.id, input);
+  }
+}
+
+// 다른 이웃 프로필(이메일·좌표 제외)
+@Controller('users')
+@UseGuards(JwtAuthGuard)
+export class PublicUsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Get(':id/profile')
+  getProfile(@Param('id', ParseUUIDPipe) id: string): Promise<PublicProfile> {
+    return this.usersService.getProfile(id);
   }
 }

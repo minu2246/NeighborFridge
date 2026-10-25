@@ -17,7 +17,9 @@ export interface FoodPost {
   isMine?: boolean;
   description?: string;
   authorName?: string;
+  authorId?: string;
   weightGrams?: number;
+  liked?: boolean;
 }
 
 export interface NewPostInput {
@@ -45,6 +47,7 @@ export interface ChatTarget {
   item: string;
   emoji: string;
   neighborName: string;
+  neighborId?: string; // 정식 모드에서 상대 프로필 보기용
   lastMessage?: string;
   lastMessageAt?: string;
   unread?: number;
@@ -73,6 +76,12 @@ export interface UserStats {
   reviewCount: number;
   sharedKg: number;
   carbonSavedKg: number;
+}
+
+export interface NeighborProfile extends UserStats {
+  id: string;
+  nickname: string;
+  neighborhoodName: string | null;
 }
 
 export interface PendingReview {

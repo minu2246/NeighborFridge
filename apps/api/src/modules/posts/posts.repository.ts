@@ -165,6 +165,26 @@ export class PostsRepository {
     return result.rows;
   }
 
+  async setLike(userId: string, postId: string, liked: boolean): Promise<void> {
+    await this.pool.query(
+      liked
+        ? 'INSERT INTO post_likes (user_id, post_id) VALUES ($1, $2) ON CONFLICT DO NOTHING'
+        : 'DELETE FROM post_likes WHERE user_id = $1 AND post_id = $2',
+      [userId, postId],
+    );
+  }
+
+  // 찜한 게시물 중 아직 거래 중인 것(최근 찜한 순)
+  async listLikedPostIds(userId: string): Promise<string[]> {
+    const result = await this.pool.query<{ post_id: string }>(
+      `SELECT l.post_id FROM post_likes l JOIN posts p ON p.id = l.post_id
+       WHERE l.user_id = $1 AND p.status IN ('ACTIVE', 'RESERVED')
+       ORDER BY l.created_at DESC`,
+      [userId],
+    );
+    return result.rows.map((row) => row.post_id);
+  }
+
   // 거래 당사자만, 게시물당 한 번. 조건이 안 맞으면 false.
   async createReview(postId: string, reviewerId: string, rating: ReviewRating, praises: string[]): Promise<boolean> {
     const result = await this.pool.query(

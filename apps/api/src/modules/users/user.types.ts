@@ -20,6 +20,12 @@ export interface UserStats {
   carbonSavedKg: number; // 추정치
 }
 
+export interface PublicProfile extends UserStats {
+  id: string;
+  nickname: string;
+  neighborhoodName: string | null;
+}
+
 export interface UserWithPassword extends UserRecord {
   passwordHash: string | null;
 }
