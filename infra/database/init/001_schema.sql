@@ -111,3 +111,6 @@ CREATE TABLE IF NOT EXISTS post_likes (
 
 -- 후기 알림: 내가 받은 후기를 마지막으로 본 시각(이후 받은 후기 = 새 후기)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS reviews_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
+-- 알림 설정: 거래 후기 알림(지금은 앱 안 배지, 푸시 도입 시 같은 값 사용)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_reviews BOOLEAN NOT NULL DEFAULT TRUE;

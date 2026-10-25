@@ -1,4 +1,4 @@
-import { Appointment, ChatMessage, ChatTarget, FoodPost, Neighborhood, LabelInfo, NeighborProfile, NewPostInput, PendingReview, ReceivedReview, ReviewNotifications, ReviewRating, TradeType, UserStats } from '../types';
+import { Appointment, ChatMessage, ChatTarget, FoodPost, Neighborhood, LabelInfo, MyAccount, NeighborProfile, NewPostInput, PendingReview, ReceivedReview, ReviewNotifications, ReviewRating, TradeType, UserStats } from '../types';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api';
 const SERVER_URL = API_URL.replace(/\/api\/?$/, '');
@@ -171,6 +171,24 @@ export async function getNeighborhood(): Promise<Neighborhood | null> {
   const me = await request<{ neighborhoodName: string | null; latitude: number | null; longitude: number | null; radiusKm: number }>('/users/me', { method: 'GET' });
   return me.neighborhoodName && me.latitude !== null && me.longitude !== null
     ? { name: me.neighborhoodName, latitude: me.latitude, longitude: me.longitude, radiusKm: me.radiusKm as Neighborhood['radiusKm'] } : null;
+}
+
+// 계정 설정(정식 모드 + 로그인 전용)
+export function getMe(): Promise<MyAccount> {
+  return request('/users/me', { method: 'GET' });
+}
+
+export async function updateMe(input: { nickname?: string; notifyReviews?: boolean }): Promise<MyAccount> {
+  const me = await request<MyAccount>('/users/me', { method: 'PATCH', body: JSON.stringify(input) });
+  if (session && session.nickname !== me.nickname) {
+    session.nickname = me.nickname;
+    await sessionStore.set(JSON.stringify(session)).catch(() => undefined);
+  }
+  return me;
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await request('/users/me/password', { method: 'PATCH', body: JSON.stringify({ currentPassword, newPassword }) });
 }
 
 // 정식 모드 전용. 로컬 모드·데모 진입(토큰 없음)은 null.

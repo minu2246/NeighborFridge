@@ -174,6 +174,11 @@ export class PostsRepository {
     return result.rows[0].count;
   }
 
+  async reviewNotificationsEnabled(userId: string): Promise<boolean> {
+    const result = await this.pool.query<{ notify_reviews: boolean }>('SELECT notify_reviews FROM users WHERE id = $1', [userId]);
+    return result.rows[0]?.notify_reviews ?? false;
+  }
+
   async markReviewsSeen(userId: string): Promise<void> {
     await this.pool.query('UPDATE users SET reviews_seen_at = NOW() WHERE id = $1', [userId]);
   }

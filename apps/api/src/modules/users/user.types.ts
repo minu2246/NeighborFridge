@@ -5,6 +5,7 @@ export interface UserRecord {
   profileImage: string | null;
   neighborhoodName: string | null;
   radiusKm: number;
+  notifyReviews: boolean; // 거래 후기 알림
   latitude: number | null;
   longitude: number | null;
   createdAt: string;

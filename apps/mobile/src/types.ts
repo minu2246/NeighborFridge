@@ -78,6 +78,12 @@ export interface UserStats {
   carbonSavedKg: number;
 }
 
+export interface MyAccount {
+  email: string;
+  nickname: string;
+  notifyReviews: boolean;
+}
+
 export interface NeighborProfile extends UserStats {
   id: string;
   nickname: string;

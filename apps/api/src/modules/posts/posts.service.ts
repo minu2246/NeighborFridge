@@ -103,7 +103,9 @@ export class PostsService {
     return reviews;
   }
 
+  // 알림 설정에서 거래 후기 알림을 끄면 0
   async getReviewNotifications(userId: string): Promise<ReviewNotifications> {
+    if (!(await this.postsRepository.reviewNotificationsEnabled(userId))) return { pendingReviews: 0, newReviews: 0 };
     const [pending, newReviews] = await Promise.all([this.postsRepository.listPendingReviews(userId), this.postsRepository.countNewReviews(userId)]);
     return { pendingReviews: pending.length, newReviews };
   }

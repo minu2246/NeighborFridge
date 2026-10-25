@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AuthenticatedUser } from '../auth/jwt.types';
 import { UpdateLocationDto } from './dto/update-location.dto';
+import { ChangePasswordDto, UpdateMeDto } from './dto/update-me.dto';
 import { PublicProfile, UserRecord, UserStats } from './user.types';
 import { UsersService } from './users.service';
 
@@ -14,6 +15,18 @@ export class UsersController {
   @Get()
   getMe(@CurrentUser() user: AuthenticatedUser): Promise<UserRecord> {
     return this.usersService.getMe(user.id);
+  }
+
+  // 닉네임·알림 설정 변경
+  @Patch()
+  updateMe(@CurrentUser() user: AuthenticatedUser, @Body() input: UpdateMeDto): Promise<UserRecord> {
+    return this.usersService.updateMe(user.id, input);
+  }
+
+  @Patch('password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  changePassword(@CurrentUser() user: AuthenticatedUser, @Body() input: ChangePasswordDto): Promise<void> {
+    return this.usersService.changePassword(user.id, input);
   }
 
   @Get('stats')
