@@ -32,6 +32,7 @@ export interface NewPostInput {
   weightGrams?: number;
   photoBase64?: string;
   photoMimeType?: string;
+  location?: { latitude: number; longitude: number }; // 거래 위치(없으면 동네 좌표)
 }
 
 export interface Neighborhood {
@@ -48,6 +49,7 @@ export interface ChatTarget {
   emoji: string;
   neighborName: string;
   neighborId?: string; // 정식 모드에서 상대 프로필 보기용
+  appointmentNotice?: '약속 제안 받음' | '오늘 약속';
   lastMessage?: string;
   lastMessageAt?: string;
   unread?: number;
@@ -66,6 +68,8 @@ export interface Appointment {
   meetAt: string;
   place: string;
   updatedAt?: string;
+  status?: 'PROPOSED' | 'ACCEPTED'; // 정식 모드만. 없으면(로컬 모드) 확정으로 봄
+  proposedByMe?: boolean;
 }
 
 export interface UserStats {

@@ -16,6 +16,7 @@ describe('PostsService', () => {
     createReview: jest.fn(),
     listReceivedReviews: jest.fn(),
     markReviewsSeen: jest.fn(),
+    distanceFromHomeKm: jest.fn(),
   } as unknown as PostsRepository;
   const service = new PostsService(repository);
 
@@ -23,7 +24,7 @@ describe('PostsService', () => {
 
   it('rejects an already expired post before querying the database', async () => {
     const input = { expiryDate: '2000-01-01' } as CreatePostDto;
-    expect(() => service.create('user-1', input)).toThrow(BadRequestException);
+    await expect(service.create('user-1', input)).rejects.toBeInstanceOf(BadRequestException);
     expect(repository.create).not.toHaveBeenCalled();
   });
 
@@ -88,6 +89,15 @@ describe('PostsService', () => {
     expect(repository.createReview).toHaveBeenLastCalledWith('p', 'u', 1, ['응답이 빨라요']);
     await service.createReview('u', 'p', -1, ['불친절해요']);
     expect(repository.createReview).toHaveBeenLastCalledWith('p', 'u', -1, ['불친절해요']);
+  });
+
+  it('rejects a trade location far from the verified neighborhood', async () => {
+    const input = { expiryDate: '2099-01-01', latitude: 35.1, longitude: 129.0 } as CreatePostDto;
+    (repository.distanceFromHomeKm as jest.Mock).mockResolvedValue(325);
+    await expect(service.create('user-1', input)).rejects.toBeInstanceOf(BadRequestException);
+    (repository.distanceFromHomeKm as jest.Mock).mockResolvedValue(null); // 동네 미인증
+    await service.create('user-1', input);
+    expect(repository.create).toHaveBeenCalledWith('user-1', input);
   });
 
   it('marks received reviews as seen only when viewing my own', async () => {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { changePassword, deleteAccount, getMe, isLoggedIn, updateMe, USE_LOCAL_STORE } from '../api/client';
+import { changeEmail, changePassword, deleteAccount, getMe, isLoggedIn, updateMe, USE_LOCAL_STORE } from '../api/client';
 import { MyAccount } from '../types';
 
 // 프로필의 "알림 설정"·"계정 및 개인정보" 화면 (정식 모드 + 로그인 전용)
@@ -12,6 +12,8 @@ export function SettingsScreen({ mode, onBack, onNicknameChange, onDeleted }: { 
   const [newPassword, setNewPassword] = useState('');
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailPassword, setEmailPassword] = useState('');
   const [deletePassword, setDeletePassword] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const available = !USE_LOCAL_STORE && isLoggedIn();
@@ -32,6 +34,7 @@ export function SettingsScreen({ mode, onBack, onNicknameChange, onDeleted }: { 
     try { await deleteAccount(deletePassword); onDeleted(); }
     catch (reason) { setMessage({ text: reason instanceof Error ? reason.message : '탈퇴하지 못했어요.', ok: false }); setConfirmDelete(false); setSaving(false); }
   }
+  const saveEmail = () => run(async () => { setMe(await changeEmail(newEmail, emailPassword)); setNewEmail(''); setEmailPassword(''); return '이메일을 바꿨어요. 다음 로그인부터 새 이메일을 쓰세요.'; });
   const savePassword = () => run(async () => { await changePassword(currentPassword, newPassword); setCurrentPassword(''); setNewPassword(''); return '비밀번호를 바꿨어요.'; });
 
   return <ScrollView contentContainerStyle={styles.page}>
@@ -45,7 +48,10 @@ export function SettingsScreen({ mode, onBack, onNicknameChange, onDeleted }: { 
           <Text style={[styles.muted, styles.note]}>휴대폰 푸시 알림은 준비 중이에요.</Text>
         </View>
       : <>
-          <View style={styles.card}><Text style={styles.label}>이메일</Text><Text style={styles.value}>{me.email}</Text></View>
+          <View style={styles.card}><Text style={styles.label}>이메일 (로그인 아이디)</Text><Text style={styles.value}>{me.email}</Text>
+            <TextInput value={newEmail} onChangeText={setNewEmail} autoCapitalize="none" keyboardType="email-address" placeholder="새 이메일" placeholderTextColor="#99A69F" style={styles.input} />
+            <TextInput value={emailPassword} onChangeText={setEmailPassword} secureTextEntry placeholder="비밀번호 확인" placeholderTextColor="#99A69F" style={styles.input} />
+            <Pressable disabled={saving || !newEmail.includes('@') || !emailPassword} style={[styles.button, (saving || !newEmail.includes('@') || !emailPassword) && styles.disabled]} onPress={() => void saveEmail()}><Text style={styles.buttonText}>이메일 변경</Text></Pressable></View>
           <View style={styles.card}><Text style={styles.label}>닉네임</Text><TextInput value={nickname} onChangeText={setNickname} maxLength={50} style={styles.input} />
             <Pressable disabled={saving || nickname.trim() === me.nickname || nickname.trim().length < 2} style={[styles.button, (saving || nickname.trim() === me.nickname || nickname.trim().length < 2) && styles.disabled]} onPress={() => void saveNickname()}><Text style={styles.buttonText}>닉네임 저장</Text></Pressable></View>
           <View style={styles.card}><Text style={styles.label}>비밀번호 변경</Text>

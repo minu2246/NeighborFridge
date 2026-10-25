@@ -3,7 +3,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AuthenticatedUser } from '../auth/jwt.types';
 import { CreatePostDto } from './dto/create-post.dto';
-import { FindNearbyPostsDto } from './dto/find-nearby-posts.dto';
+import { FindNearbyPostsDto, OptionalPointDto } from './dto/find-nearby-posts.dto';
 import { PostRecord } from './post.types';
 import { PostsService } from './posts.service';
 import { UpdatePostDto } from './dto/update-post.dto';
@@ -27,11 +27,11 @@ export class PostsController {
     return this.postsService.findNearby(input);
   }
 
-  // 관심 목록: 내가 찜한 거래 중 게시물 id
+  // 관심 목록: 내가 찜한 거래 중 게시물(동네 반경과 무관). 좌표를 주면 거리 포함
   @Get('liked')
   @UseGuards(JwtAuthGuard)
-  listLiked(@CurrentUser() user: AuthenticatedUser): Promise<string[]> {
-    return this.postsService.listLikedPostIds(user.id);
+  listLiked(@CurrentUser() user: AuthenticatedUser, @Query() point: OptionalPointDto): Promise<PostRecord[]> {
+    return this.postsService.listLikedPosts(user.id, point.latitude, point.longitude);
   }
 
   @Put(':id/like')

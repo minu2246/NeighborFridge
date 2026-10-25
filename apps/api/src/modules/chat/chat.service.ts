@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ChatEventsService } from './chat-events.service';
 import { ChatRepository } from './chat.repository';
-import { ChatMessageRecord, ChatRoomRecord, formatAppointmentMessage } from './chat.types';
+import { APPOINTMENT_DECLINED_MESSAGE, AppointmentRecord, ChatMessageRecord, ChatRoomRecord, formatAppointmentAccepted, formatAppointmentMessage } from './chat.types';
 import { ListMessagesDto } from './dto/list-messages.dto';
 
 @Injectable()
@@ -34,19 +34,38 @@ export class ChatService {
     return message;
   }
 
-  async getAppointment(userId: string, roomId: string) {
-    const room = await this.requireParticipant(userId, roomId);
-    return room.meetAt && room.meetPlace ? { roomId, meetAt: room.meetAt, place: room.meetPlace } : null;
+  async getAppointment(userId: string, roomId: string): Promise<AppointmentRecord | null> {
+    return this.toAppointment(await this.requireParticipant(userId, roomId), userId);
   }
 
+  // 약속 제안(새로 잡기·변경 모두). 상대가 수락해야 확정
   async saveAppointment(userId: string, roomId: string, meetAt: string, value: string) {
     await this.requireParticipant(userId, roomId);
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
     if (meetAt.slice(0, 10) < today) throw new BadRequestException('지난 날짜로는 약속을 잡을 수 없습니다.');
     const place = value.trim();
-    await this.repository.saveAppointment(roomId, meetAt, place);
+    await this.repository.saveAppointment(roomId, meetAt, place, userId);
     const message = await this.sendMessage(userId, roomId, formatAppointmentMessage(meetAt, place));
-    return { appointment: { roomId, meetAt, place }, message };
+    const appointment: AppointmentRecord = { roomId, meetAt, place, status: 'PROPOSED', proposedByMe: true };
+    return { appointment, message };
+  }
+
+  // 상대가 제안한 약속에만 수락/거절 가능
+  async respondAppointment(userId: string, roomId: string, accept: boolean) {
+    const room = await this.requireParticipant(userId, roomId);
+    if (room.meetStatus !== 'PROPOSED' || !room.meetAt || !room.meetPlace || room.meetProposedBy === userId) {
+      throw new BadRequestException('수락하거나 거절할 약속 제안이 없습니다.');
+    }
+    if (accept) await this.repository.acceptAppointment(roomId);
+    else await this.repository.clearAppointment(roomId);
+    const message = await this.sendMessage(userId, roomId, accept ? formatAppointmentAccepted(room.meetAt, room.meetPlace) : APPOINTMENT_DECLINED_MESSAGE);
+    const appointment: AppointmentRecord | null = accept ? { roomId, meetAt: room.meetAt, place: room.meetPlace, status: 'ACCEPTED', proposedByMe: false } : null;
+    return { appointment, message };
+  }
+
+  private toAppointment(room: ChatRoomRecord, userId: string): AppointmentRecord | null {
+    if (!room.meetAt || !room.meetPlace) return null;
+    return { roomId: room.id, meetAt: room.meetAt, place: room.meetPlace, status: room.meetStatus ?? 'ACCEPTED', proposedByMe: room.meetProposedBy === userId };
   }
 
   async requireParticipant(userId: string, roomId: string): Promise<ChatRoomRecord> {

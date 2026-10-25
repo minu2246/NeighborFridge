@@ -9,7 +9,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "export:web": "expo export --platform web --output-dir ../api/public/mobile",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/lib/lib.test.ts"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

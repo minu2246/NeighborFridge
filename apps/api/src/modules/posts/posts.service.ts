@@ -12,11 +12,13 @@ import { PostsRepository } from './posts.repository';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { UpdatePostStatusDto } from './dto/update-post-status.dto';
 
+const MAX_POST_DISTANCE_KM = 10;
+
 @Injectable()
 export class PostsService {
   constructor(private readonly postsRepository: PostsRepository) {}
 
-  create(userId: string, input: CreatePostDto): Promise<PostRecord> {
+  async create(userId: string, input: CreatePostDto): Promise<PostRecord> {
     const today = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Asia/Seoul',
       year: 'numeric',
@@ -25,6 +27,11 @@ export class PostsService {
     }).format(new Date());
     if (input.expiryDate < today) {
       throw new BadRequestException('이미 지난 소비기한은 등록할 수 없습니다.');
+    }
+    // 거래 위치는 인증한 동네 근처만(동네 미인증이면 검사 안 함). 검색 반경 최대 5km + 여유
+    const distanceKm = await this.postsRepository.distanceFromHomeKm(userId, input.latitude, input.longitude);
+    if (distanceKm !== null && distanceKm > MAX_POST_DISTANCE_KM) {
+      throw new BadRequestException(`거래 위치는 인증한 동네에서 ${MAX_POST_DISTANCE_KM}km 이내여야 합니다.`);
     }
     return this.postsRepository.create(userId, input);
   }
@@ -88,8 +95,8 @@ export class PostsService {
     await this.postsRepository.setLike(userId, postId, liked);
   }
 
-  listLikedPostIds(userId: string): Promise<string[]> {
-    return this.postsRepository.listLikedPostIds(userId);
+  listLikedPosts(userId: string, latitude?: number, longitude?: number): Promise<PostRecord[]> {
+    return this.postsRepository.listLikedPosts(userId, latitude, longitude);
   }
 
   listPendingReviews(userId: string): Promise<PendingReview[]> {

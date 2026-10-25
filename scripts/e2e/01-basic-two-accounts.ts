@@ -43,7 +43,7 @@ const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwA
   assert.equal(rooms.length, 1); assert.equal(rooms[0].roomId, room.roomId); assert.equal(rooms[0].neighborName, B.nick);
   const msgs = await api.listMessages(room.roomId);
   assert.deepEqual(msgs.map((m) => m.sender), ['them', 'them']);
-  assert.deepEqual(await api.getAppointment(room.roomId), { roomId: room.roomId, meetAt: `${tomorrow}T18:30`, place: '시청역 4번 출구' });
+  assert.deepEqual(await api.getAppointment(room.roomId), { roomId: room.roomId, meetAt: `${tomorrow}T18:30`, place: '시청역 4번 출구', status: 'PROPOSED', proposedByMe: false });
   step('A 로그인: 채팅방 1개, 상대 메시지 2개, 약속 조회 일치');
   await api.sendMessage(room.roomId, '네 내일 뵈어요');
   await api.updatePostStatus(post.id, 'RESERVED');

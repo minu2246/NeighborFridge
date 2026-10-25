@@ -41,5 +41,13 @@ const pw = 'password1234';
   await api.changePassword(pw, 'newpass12345');
   await assert.rejects(api.login(owner, pw));
   await api.login(owner, 'newpass12345'); step('변경 후 옛 비밀번호 로그인 실패, 새 비밀번호 성공');
+
+  // 이메일 변경
+  const moved = `st-moved${run}@test.local`;
+  await assert.rejects(api.changeEmail(moved, 'wrongpass123'), /현재 비밀번호/); step('이메일 변경: 비밀번호 틀리면 거부');
+  await assert.rejects(api.changeEmail(asker, 'newpass12345'), /이미 가입된/); step('다른 계정 이메일로는 변경 불가');
+  assert.equal((await api.changeEmail(`ST-Moved${run}@Test.Local`, 'newpass12345')).email, moved); step('가입과 같이 소문자로 저장');
+  await assert.rejects(api.login(owner, 'newpass12345'));
+  await api.login(moved, 'newpass12345'); step('옛 이메일 로그인 실패, 새 이메일 로그인 성공');
   console.log('\nE2E 통과');
 })().catch((error) => { console.error('✘ 실패:', error); process.exit(1); });

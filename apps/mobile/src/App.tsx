@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { BackHandler, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { createPost, getHealth, getNeighborhood, getReviewNotifications, listLikedPostIds, listPosts, login, logout, openChatRoom, register, restoreSession, saveNeighborhood, setPostLiked, updatePostStatus, USE_LOCAL_STORE } from './api/client';
+import { createPost, getHealth, getNeighborhood, getReviewNotifications, listChatRooms, listLikedPosts, listPosts, login, logout, openChatRoom, register, restoreSession, saveNeighborhood, setPostLiked, updatePostStatus, USE_LOCAL_STORE } from './api/client';
 import { demoPosts } from './data/demo';
 import { AddScreen } from './screens/AddScreen';
 import { ChatScreen } from './screens/ChatScreen';
@@ -28,6 +28,7 @@ export default function App() {
   const [locationChecked, setLocationChecked] = useState(false);
   const [only, setOnly] = useState<'mine' | 'liked' | undefined>();
   const [reviewNotice, setReviewNotice] = useState<ReviewNotifications>({ pendingReviews: 0, newReviews: 0 });
+  const [chatBadge, setChatBadge] = useState(0);
   const [nickname, setNickname] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(true);
   useEffect(() => { void getHealth().then(setOnline); }, []);
@@ -49,16 +50,27 @@ export default function App() {
   }, [authenticated]);
   useEffect(() => {
     if (!authenticated || !neighborhood) return;
-    void Promise.all([listPosts(neighborhood), listLikedPostIds().catch((): string[] => [])]).then(([saved, liked]) => {
-      if (saved.length > 0 || !USE_LOCAL_STORE) setPosts(saved.map((post) => ({ ...post, liked: liked.includes(post.id) })));
+    // 주변 게시물 + 반경 밖의 찜 게시물(관심 목록에서만 보임, filterPosts 참고)
+    void Promise.all([listPosts(neighborhood), listLikedPosts(neighborhood).catch((): FoodPost[] => [])]).then(([saved, liked]) => {
+      const likedIds = new Set(liked.map((post) => post.id));
+      const nearby = saved.map((post) => ({ ...post, liked: likedIds.has(post.id) }));
+      if (saved.length > 0 || !USE_LOCAL_STORE) setPosts([...nearby, ...liked.filter((post) => !saved.some((near) => near.id === post.id))]);
     }).catch(() => undefined);
   }, [authenticated, neighborhood]);
-  // 후기 알림: 탭을 옮길 때마다 갱신. 프로필을 보고 있으면 새 후기는 읽은 것으로 보고 배지에서 뺌
+  // 탭 배지: 탭을 옮길 때와 30초마다 갱신. 프로필을 보고 있으면 새 후기는 읽은 것으로 보고 뺌
+  // 채팅 배지 = 안 읽은 메시지 + 받은 약속 제안
   useEffect(() => {
     if (!authenticated || !nickname) return;
-    void getReviewNotifications().then(setReviewNotice).catch(() => undefined);
+    const load = () => {
+      void getReviewNotifications().then(setReviewNotice).catch(() => undefined);
+      if (!USE_LOCAL_STORE) void listChatRooms().then((rooms) => setChatBadge(rooms.reduce((sum, room) => sum + (room.unread ?? 0) + (room.appointmentNotice === '약속 제안 받음' ? 1 : 0), 0))).catch(() => undefined);
+    };
+    load();
+    const timer = setInterval(load, 30_000);
+    return () => clearInterval(timer);
   }, [authenticated, nickname, tab]);
   const profileBadge = reviewNotice.pendingReviews + (tab === 'profile' ? 0 : reviewNotice.newReviews);
+  const badges: Partial<Record<TabName, number>> = { profile: profileBadge, chat: tab === 'chat' ? 0 : chatBadge };
   async function updateNeighborhood(value: Neighborhood) {
     const saved = await saveNeighborhood(value).catch(() => value);
     setNeighborhood(saved);
@@ -100,7 +112,7 @@ export default function App() {
       <View style={[styles.connection, online ? styles.online : styles.demo]}><Text style={styles.connectionText}>{online ? '● API 연결됨' : '● 데모 데이터'}</Text></View>
       <View style={styles.content}>{tab === 'home' ? <HomeScreen posts={posts} neighborhood={neighborhood} only={only} onShowAll={() => setOnly(undefined)} onNeighborhoodChange={updateNeighborhood} onSelectPost={setSelectedPost} /> : tab === 'add' ? <AddScreen onSubmit={addPost} /> : tab === 'chat' ? <ChatScreen startTarget={chatTarget} /> : <ProfileScreen nickname={nickname} onLogout={() => void handleLogout()} neighborhood={neighborhood} postCount={posts.filter((post) => post.isMine).length} onMyPosts={() => { setOnly('mine'); setTab('home'); }} likedCount={posts.filter((post) => post.liked).length} onLiked={() => { setOnly('liked'); setTab('home'); }} onNicknameChange={setNickname} onResetLocation={() => setNeighborhood(null)} />}</View>
       <View style={styles.nav}>{tabs.map((item) => <Pressable key={item.key} onPress={() => { if (item.key === 'home') setOnly(undefined); setTab(item.key); }} style={styles.navItem}>
-        <Text style={[styles.navIcon, tab === item.key && styles.active]}>{item.icon}</Text>{item.key === 'profile' && profileBadge > 0 ? <Text style={styles.badge} accessibilityLabel={`후기 알림 ${profileBadge}개`}>{profileBadge}</Text> : null}<Text style={[styles.navLabel, tab === item.key && styles.active]}>{item.label}</Text>
+        <Text style={[styles.navIcon, tab === item.key && styles.active]}>{item.icon}</Text>{badges[item.key] ? <Text style={styles.badge} accessibilityLabel={`${item.label} 알림 ${badges[item.key]}개`}>{badges[item.key]}</Text> : null}<Text style={[styles.navLabel, tab === item.key && styles.active]}>{item.label}</Text>
       </Pressable>)}</View>
     </View>
   </SafeAreaView>;

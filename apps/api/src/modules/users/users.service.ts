@@ -1,9 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { rm } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { PasswordService } from '../auth/password.service';
 import { UpdateLocationDto } from './dto/update-location.dto';
-import { ChangePasswordDto, UpdateMeDto } from './dto/update-me.dto';
+import { ChangeEmailDto, ChangePasswordDto, UpdateMeDto } from './dto/update-me.dto';
 import { PublicProfile, UserRecord, UserStats } from './user.types';
 import { UsersRepository } from './users.repository';
 
@@ -25,6 +25,23 @@ export class UsersService {
   async changePassword(userId: string, input: ChangePasswordDto): Promise<void> {
     await this.verifyPassword(userId, input.currentPassword);
     await this.usersRepository.updatePasswordHash(userId, await this.passwordService.hash(input.newPassword));
+  }
+
+  // 이메일 변경(로그인 아이디가 바뀜): 비밀번호 확인, 다른 계정과 중복 불가. 가입과 같이 소문자로 저장
+  async changeEmail(userId: string, input: ChangeEmailDto): Promise<UserRecord> {
+    await this.verifyPassword(userId, input.password);
+    const email = input.email.trim().toLowerCase();
+    const existing = await this.usersRepository.findByEmail(email);
+    if (existing && existing.id !== userId) throw new ConflictException('이미 가입된 이메일입니다.');
+    try {
+      const user = await this.usersRepository.updateEmail(userId, email);
+      if (!user) throw new NotFoundException('사용자를 찾을 수 없습니다.');
+      return user;
+    } catch (error) {
+      // 확인과 저장 사이에 다른 가입이 끼어든 경우
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === '23505') throw new ConflictException('이미 가입된 이메일입니다.');
+      throw error;
+    }
   }
 
   // 회원 탈퇴: 비밀번호 확인 후 DB 데이터와 게시물 사진 파일까지 삭제

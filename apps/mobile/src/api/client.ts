@@ -1,5 +1,7 @@
 import { Appointment, ChatMessage, ChatTarget, FoodPost, Neighborhood, LabelInfo, MyAccount, NeighborProfile, NewPostInput, PendingReview, ReceivedReview, ReviewNotifications, ReviewRating, TradeType, UserStats } from '../types';
 
+import { appointmentNotice } from '../lib/chat';
+
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000/api';
 const SERVER_URL = API_URL.replace(/\/api\/?$/, '');
 
@@ -112,8 +114,9 @@ export async function createPost(input: NewPostInput, neighborhood: Neighborhood
     const draft = { emoji: '🥕', name: input.name, title: input.title, type: input.type, distance: '0km', dDay: input.expiryDate, place: input.place, color: '#E6F4DE', expiryDate: input.expiryDate, status: 'ACTIVE' as const, imageUrl };
     return request('/local/posts', { method: 'POST', body: JSON.stringify(draft) });
   }
-  // ponytail: 게시물 좌표 = 인증한 동네 좌표. 게시물별 거래 위치 지정이 필요하면 등록 화면에서 좌표를 받는다.
-  const body = { title: input.title, itemName: input.name, expiryDate: input.expiryDate, tradeType: tradeCodes[input.type], imageUrls: imageUrl ? [imageUrl] : [], latitude: neighborhood.latitude, longitude: neighborhood.longitude, placeName: input.place, ...(input.description ? { description: input.description } : {}), ...(input.weightGrams ? { weightGrams: input.weightGrams } : {}) };
+  // 게시물 좌표 = 등록 화면에서 지정한 거래 위치, 없으면 인증한 동네 좌표(서버가 동네 10km 이내인지 확인)
+  const point = input.location ?? neighborhood;
+  const body = { title: input.title, itemName: input.name, expiryDate: input.expiryDate, tradeType: tradeCodes[input.type], imageUrls: imageUrl ? [imageUrl] : [], latitude: point.latitude, longitude: point.longitude, placeName: input.place, ...(input.description ? { description: input.description } : {}), ...(input.weightGrams ? { weightGrams: input.weightGrams } : {}) };
   return { ...toFoodPost(await request<ApiPost>('/posts', { method: 'POST', body: JSON.stringify(body) })), authorName: session?.nickname };
 }
 
@@ -129,10 +132,11 @@ export async function listPostChatPartners(postId: string): Promise<{ userId: st
   return rooms.filter((room) => room.postId === postId && room.ownerId === session?.userId).map((room) => ({ userId: room.requesterId, nickname: room.partnerNickname ?? '이웃' }));
 }
 
-// 관심 목록(찜). 정식 모드 + 로그인 전용, 그 외는 빈 목록.
-export async function listLikedPostIds(): Promise<string[]> {
+// 관심 목록(찜): 동네 반경과 상관없이 거래 중인 찜 게시물. 동네를 주면 거리 계산. 정식 모드 + 로그인 전용
+export async function listLikedPosts(neighborhood?: Neighborhood): Promise<FoodPost[]> {
   if (USE_LOCAL_STORE || !session) return [];
-  return request('/posts/liked', { method: 'GET' });
+  const query = neighborhood ? `?latitude=${neighborhood.latitude}&longitude=${neighborhood.longitude}` : '';
+  return (await request<ApiPost[]>(`/posts/liked${query}`, { method: 'GET' })).map((post) => ({ ...toFoodPost(post), liked: true }));
 }
 
 export async function setPostLiked(postId: string, liked: boolean): Promise<void> {
@@ -191,6 +195,11 @@ export async function changePassword(currentPassword: string, newPassword: strin
   await request('/users/me/password', { method: 'PATCH', body: JSON.stringify({ currentPassword, newPassword }) });
 }
 
+// 이메일(로그인 아이디) 변경. 비밀번호 확인 필요
+export function changeEmail(email: string, password: string): Promise<MyAccount> {
+  return request('/users/me/email', { method: 'PATCH', body: JSON.stringify({ email, password }) });
+}
+
 // 회원 탈퇴(되돌릴 수 없음). 성공하면 저장된 로그인도 지운다.
 export async function deleteAccount(password: string): Promise<void> {
   await request('/users/me', { method: 'DELETE', body: JSON.stringify({ password }) });
@@ -218,8 +227,9 @@ export async function openChatRoom(post: FoodPost): Promise<ChatTarget> {
 }
 
 export async function listChatRooms(): Promise<ChatTarget[]> {
-  const rooms = await request<{ id: string; postTitle: string; ownerId: string; requesterId: string; partnerNickname?: string; lastMessage?: string; lastMessageAt?: string; unreadCount?: number }[]>('/chats/rooms', { method: 'GET' });
-  return rooms.map((room) => ({ roomId: room.id, item: room.postTitle, emoji: '🥕', neighborName: room.partnerNickname ?? (room.ownerId === session?.userId ? '문의한 이웃' : '게시물 이웃'), neighborId: room.ownerId === session?.userId ? room.requesterId : room.ownerId, lastMessage: room.lastMessage, lastMessageAt: room.lastMessageAt, unread: room.unreadCount }));
+  const rooms = await request<{ id: string; postTitle: string; ownerId: string; requesterId: string; partnerNickname?: string; lastMessage?: string; lastMessageAt?: string; unreadCount?: number; meetAt: string | null; meetStatus: Appointment['status'] | null; meetProposedBy: string | null }[]>('/chats/rooms', { method: 'GET' });
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
+  return rooms.map((room) => ({ roomId: room.id, item: room.postTitle, emoji: '🥕', neighborName: room.partnerNickname ?? (room.ownerId === session?.userId ? '문의한 이웃' : '게시물 이웃'), neighborId: room.ownerId === session?.userId ? room.requesterId : room.ownerId, appointmentNotice: appointmentNotice(room, session?.userId, today), lastMessage: room.lastMessage, lastMessageAt: room.lastMessageAt, unread: room.unreadCount }));
 }
 
 const roomPath = (roomId: string) => `/${USE_LOCAL_STORE ? 'local' : 'chats'}/rooms/${encodeURIComponent(roomId)}`;
@@ -237,6 +247,12 @@ export async function sendMessage(roomId: string, message: string): Promise<Chat
 
 export function getAppointment(roomId: string): Promise<Appointment | null> {
   return request(`${roomPath(roomId)}/appointment`, { method: 'GET' });
+}
+
+// 상대가 제안한 약속 수락/거절(정식 모드 전용). 거절하면 appointment는 null
+export async function respondAppointment(roomId: string, accept: boolean): Promise<{ appointment: Appointment | null; message: ChatMessage }> {
+  const result = await request<{ appointment: Appointment | null; message: ChatMessage }>(`${roomPath(roomId)}/appointment/respond`, { method: 'POST', body: JSON.stringify({ accept }) });
+  return { appointment: result.appointment, message: toChatMessage(result.message) };
 }
 
 export async function saveAppointment(roomId: string, meetAt: string, place: string): Promise<{ appointment: Appointment; message: ChatMessage }> {

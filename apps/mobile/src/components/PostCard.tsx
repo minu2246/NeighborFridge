@@ -1,4 +1,5 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { displayDDay } from '../lib/posts';
 import { FoodPost } from '../types';
 
 export function PostCard({ post, onPress }: { post: FoodPost; onPress?: () => void }) {
@@ -22,12 +23,6 @@ export function PostCard({ post, onPress }: { post: FoodPost; onPress?: () => vo
   );
 }
 
-function displayDDay(post: FoodPost): string {
-  if (!post.expiryDate || post.expiryDate === '2099-12-31') return post.dDay;
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const days = Math.round((new Date(`${post.expiryDate}T00:00:00`).getTime() - today.getTime()) / 86_400_000);
-  return days === 0 ? '오늘' : `D-${days}`;
-}
 
 const styles = StyleSheet.create({
   card: { flexDirection: 'row', backgroundColor: '#FFF', padding: 12, borderRadius: 18, marginBottom: 12, borderWidth: 1, borderColor: '#E7EFEA' },

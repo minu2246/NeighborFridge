@@ -1,19 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SettingsScreen } from './SettingsScreen';
+import { countPraises, mannerFace, NEGATIVE_PRAISES, POSITIVE_PRAISES, RATINGS, ratingLabel } from '../lib/reviews';
 import { getMyStats, listPendingReviews, listReceivedReviews, submitReview } from '../api/client';
 import { Neighborhood, PendingReview, ReceivedReview, ReviewRating, UserStats } from '../types';
 
-const ratings: { value: ReviewRating; label: string }[] = [{ value: 2, label: '최고예요' }, { value: 1, label: '좋아요' }, { value: -1, label: '별로예요' }];
-// 서버(post.types.ts)와 같은 목록이어야 함
-const POSITIVE_PRAISES = ['시간 약속을 잘 지켜요', '친절하고 매너가 좋아요', '응답이 빨라요', '상품 상태가 설명과 같아요', '나눔이 정성스러워요'];
-const NEGATIVE_PRAISES = ['약속 시간을 안 지켜요', '불친절해요', '응답이 느려요', '상품 상태가 설명과 달라요'];
-export const ratingLabel = (value: ReviewRating) => ratings.find((rating) => rating.value === value)?.label ?? '';
-// 받은 칭찬 항목별 횟수(좋은 평가만), 많은 순
-export const countPraises = (received: ReceivedReview[]) => Object.entries(received.filter((r) => r.rating > 0).flatMap((r) => r.praises)
-  .reduce<Record<string, number>>((counts, praise) => ({ ...counts, [praise]: (counts[praise] ?? 0) + 1 }), {}))
-  .sort((a, b) => b[1] - a[1]);
-export const mannerFace = (t: number) => t >= 50 ? '😆' : t >= 40 ? '😊' : t >= 36.5 ? '🙂' : t >= 30 ? '😐' : '😟';
+const ratings = RATINGS;
 export function ProfileScreen({ nickname, neighborhood, postCount, likedCount, onMyPosts, onLiked, onResetLocation, onLogout, onNicknameChange }: { nickname: string | null; neighborhood: Neighborhood | null; postCount: number; likedCount: number; onMyPosts: () => void; onLiked: () => void; onNicknameChange: (nickname: string) => void; onResetLocation: () => void; onLogout: () => void }) {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [pending, setPending] = useState<PendingReview[]>([]);

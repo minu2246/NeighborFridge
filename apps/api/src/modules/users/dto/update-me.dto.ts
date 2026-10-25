@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class UpdateMeDto {
   // 회원가입과 같은 규칙
@@ -11,6 +11,15 @@ export class UpdateMeDto {
   @IsOptional()
   @IsBoolean()
   notifyReviews?: boolean;
+}
+
+export class ChangeEmailDto {
+  @IsEmail()
+  @MaxLength(255)
+  email!: string;
+
+  @IsString()
+  password!: string;
 }
 
 export class DeleteAccountDto {

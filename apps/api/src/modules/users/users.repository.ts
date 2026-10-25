@@ -107,6 +107,18 @@ export class UsersRepository {
     return result.rows[0] ? this.mapRow(result.rows[0]) : null;
   }
 
+  async updateEmail(id: string, email: string): Promise<UserRecord | null> {
+    const result = await this.pool.query<UserRow>(
+      `UPDATE users SET email = $2, updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, email, password_hash, nickname, profile_image, neighborhood_name, search_radius_km, notify_reviews,
+         ST_Y(location::geometry) AS latitude,
+         ST_X(location::geometry) AS longitude, created_at`,
+      [id, email],
+    );
+    return result.rows[0] ? this.mapRow(result.rows[0]) : null;
+  }
+
   async findPasswordHash(id: string): Promise<string | null> {
     const result = await this.pool.query<{ password_hash: string | null }>('SELECT password_hash FROM users WHERE id = $1', [id]);
     return result.rows[0]?.password_hash ?? null;

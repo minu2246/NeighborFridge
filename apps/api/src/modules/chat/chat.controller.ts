@@ -10,6 +10,7 @@ import { ChatService } from './chat.service';
 import { ChatMessageRecord, ChatRoomRecord } from './chat.types';
 import { CreateChatRoomDto } from './dto/create-chat-room.dto';
 import { ListMessagesDto } from './dto/list-messages.dto';
+import { RespondAppointmentDto } from './dto/respond-appointment.dto';
 import { SaveAppointmentDto } from './dto/save-appointment.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 
@@ -61,6 +62,16 @@ export class ChatController {
     @Body() input: SaveAppointmentDto,
   ) {
     return this.chatService.saveAppointment(user.id, roomId, input.meetAt, input.place);
+  }
+
+  // 상대가 제안한 약속 수락/거절
+  @Post('rooms/:roomId/appointment/respond')
+  respondAppointment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('roomId', ParseUUIDPipe) roomId: string,
+    @Body() input: RespondAppointmentDto,
+  ) {
+    return this.chatService.respondAppointment(user.id, roomId, input.accept);
   }
 
   @Sse('rooms/:roomId/events')

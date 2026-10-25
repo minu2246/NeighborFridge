@@ -1,6 +1,19 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsLatitude, IsLongitude, IsNumber, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsLatitude, IsLongitude, IsNumber, IsOptional, Max, Min, ValidateIf } from 'class-validator';
 import { PostSort } from '../post.types';
+
+// 거리 계산용 좌표(둘 다 있거나 둘 다 없거나)
+export class OptionalPointDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsLatitude()
+  latitude?: number;
+
+  @ValidateIf((point: OptionalPointDto) => point.latitude !== undefined)
+  @Type(() => Number)
+  @IsLongitude()
+  longitude?: number;
+}
 
 export class FindNearbyPostsDto {
   @Type(() => Number)

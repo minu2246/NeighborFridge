@@ -3,7 +3,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AuthenticatedUser } from '../auth/jwt.types';
 import { UpdateLocationDto } from './dto/update-location.dto';
-import { ChangePasswordDto, DeleteAccountDto, UpdateMeDto } from './dto/update-me.dto';
+import { ChangeEmailDto, ChangePasswordDto, DeleteAccountDto, UpdateMeDto } from './dto/update-me.dto';
 import { PublicProfile, UserRecord, UserStats } from './user.types';
 import { UsersService } from './users.service';
 
@@ -27,6 +27,11 @@ export class UsersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   changePassword(@CurrentUser() user: AuthenticatedUser, @Body() input: ChangePasswordDto): Promise<void> {
     return this.usersService.changePassword(user.id, input);
+  }
+
+  @Patch('email')
+  changeEmail(@CurrentUser() user: AuthenticatedUser, @Body() input: ChangeEmailDto): Promise<UserRecord> {
+    return this.usersService.changeEmail(user.id, input);
   }
 
   // 회원 탈퇴(되돌릴 수 없음)

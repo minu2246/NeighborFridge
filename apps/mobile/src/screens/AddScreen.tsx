@@ -1,4 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { isLoggedIn, readLabel, USE_LOCAL_STORE } from '../api/client';
@@ -9,6 +10,9 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
   const [name, setName] = useState(''); const [title, setTitle] = useState('');
   const [type, setType] = useState<TradeType>('나눔'); const [expiryDate, setExpiryDate] = useState('');
   const [place, setPlace] = useState(''); const [saved, setSaved] = useState(false);
+  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState('');
   const [description, setDescription] = useState('');
   const [weight, setWeight] = useState(''); // g, 선택 (탄소 절감 추정용)
   const weightGrams = /^\d+$/.test(weight.trim()) ? Number(weight.trim()) : undefined;
@@ -54,9 +58,20 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
     if (!result.canceled && asset?.base64) { setAutoNotes([]); setAutoError(''); }
     if (!result.canceled && asset?.base64) setPhoto({ uri: asset.uri, base64: asset.base64, mimeType: asset.mimeType ?? 'image/jpeg' });
   }
+  // 거래 위치를 지금 있는 곳으로(동네에서 너무 멀면 서버가 등록 거부)
+  async function pickCurrentLocation() {
+    setLocating(true); setLocationError('');
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) { setLocationError('위치 권한이 없어 동네 기준 위치로 등록돼요.'); return; }
+      const { coords } = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setLocation({ latitude: coords.latitude, longitude: coords.longitude }); setSaved(false);
+    } catch { setLocationError('현재 위치를 확인하지 못했어요. 동네 기준 위치로 등록돼요.'); }
+    finally { setLocating(false); }
+  }
   async function savePost() {
     setSubmitting(true);
-    try { await onSubmit({ name: name.trim(), title: title.trim(), type, expiryDate, place: place.trim(), description: description.trim() || undefined, weightGrams, photoBase64: photo?.base64, photoMimeType: photo?.mimeType }); setSaved(true); }
+    try { await onSubmit({ name: name.trim(), title: title.trim(), type, expiryDate, place: place.trim(), description: description.trim() || undefined, weightGrams, photoBase64: photo?.base64, photoMimeType: photo?.mimeType, location: location ?? undefined }); setSaved(true); }
     catch (reason) { setError(reason instanceof Error ? reason.message : '사진 또는 게시물을 저장하지 못했어요. 다시 시도해 주세요.'); }
     finally { setSubmitting(false); }
   }
@@ -84,6 +99,9 @@ export function AddScreen({ onSubmit }: { onSubmit: (input: NewPostInput) => Pro
     <Label text="소비기한" /><Pressable onPress={() => setCalendarOpen(true)} style={styles.dateButton}><Text style={expiryDate ? styles.dateValue : styles.datePlaceholder}>{expiryDate ? formatDate(expiryDate) : '날짜 선택하기'}</Text><Text style={styles.calendarIcon}>▣</Text></Pressable>
     {!USE_LOCAL_STORE ? <><Label text="무게 (선택, g)" /><TextInput value={weight} onChangeText={setWeight} style={styles.input} placeholder="예: 300 — 나눔으로 줄인 탄소를 계산해요" placeholderTextColor="#9AA8A0" keyboardType="number-pad" maxLength={6} /></> : null}
     <Label text="거래 장소" /><TextInput value={place} onChangeText={setPlace} style={styles.input} placeholder="안전한 공공장소를 입력하세요" placeholderTextColor="#9AA8A0" />
+    <View style={styles.locationRow}><Text style={styles.locationText}>{location ? '📍 지금 있는 곳을 거래 위치로 지정했어요' : '📍 거래 위치: 인증한 동네 기준'}</Text>
+      <Pressable disabled={locating} onPress={() => location ? setLocation(null) : void pickCurrentLocation()}><Text style={styles.locationAction}>{locating ? '확인 중…' : location ? '해제' : '지금 위치로'}</Text></Pressable></View>
+    {locationError ? <Text style={styles.locationError}>{locationError}</Text> : null}
     {error ? <Text style={styles.error}>{error}</Text> : null}
     {saved && <Text style={styles.saved}>✓ 홈 목록에 등록되었습니다.</Text>}
     <Pressable onPress={submit} style={[styles.submit, submitting && styles.disabled]} disabled={submitting}>{submitting ? <ActivityIndicator color="#FFF"/> : <Text style={styles.submitText}>이웃 냉장고에 올리기</Text>}</Pressable>
@@ -98,7 +116,7 @@ function daysUntil(value: string) { const today = new Date(); today.setHours(0, 
 const styles = StyleSheet.create({
   page: { padding: 22, paddingBottom: 110 }, title: { fontSize: 28, fontWeight: '900', color: '#173C2D', marginTop: 14 }, subtitle: { color: '#74867D', marginTop: 6, marginBottom: 22 },
   photo: { height: 190, borderRadius: 20, borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#9FC8AE', backgroundColor: '#F1F9F4', alignItems: 'center', justifyContent: 'center', marginBottom: 22, overflow: 'hidden' }, photoEmoji: { fontSize: 32 }, photoText: { fontWeight: '800', color: '#276B4D', marginTop: 7 }, photoActions: { flexDirection: 'row', marginTop: 12 }, photoButton: { color: '#FFF', backgroundColor: '#19734B', paddingHorizontal: 18, paddingVertical: 8, borderRadius: 12, marginHorizontal: 5, overflow: 'hidden', fontWeight: '800' }, preview: { width: '100%', height: '100%' }, remove: { position: 'absolute', right: 10, top: 10, backgroundColor: 'rgba(20,35,28,.75)', paddingHorizontal: 10, paddingVertical: 7, borderRadius: 10 }, removeText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
-  label: { color: '#29483A', fontWeight: '800', fontSize: 14, marginTop: 15, marginBottom: 8 }, input: { height: 50, borderRadius: 13, borderWidth: 1, borderColor: '#DCE7E0', paddingHorizontal: 15, backgroundColor: '#FFF', color: '#173C2D' },
+  label: { color: '#29483A', fontWeight: '800', fontSize: 14, marginTop: 15, marginBottom: 8 }, input: { height: 50, borderRadius: 13, borderWidth: 1, borderColor: '#DCE7E0', paddingHorizontal: 15, backgroundColor: '#FFF', color: '#173C2D' }, locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 }, locationText: { flex: 1, color: '#59806C', fontSize: 12 }, locationAction: { color: '#19734B', fontWeight: '800', fontSize: 12, marginLeft: 8 }, locationError: { color: '#B54C3C', fontSize: 11, marginTop: 4 },
   dateButton: { height: 50, borderRadius: 13, borderWidth: 1, borderColor: '#DCE7E0', paddingHorizontal: 15, backgroundColor: '#FFF', flexDirection: 'row', alignItems: 'center' }, dateValue: { flex: 1, color: '#173C2D', fontWeight: '800' }, datePlaceholder: { flex: 1, color: '#9AA8A0' }, calendarIcon: { color: '#19734B', fontSize: 17 },
   options: { flexDirection: 'row' }, option: { paddingVertical: 10, paddingHorizontal: 15, backgroundColor: '#EDF2EF', color: '#5D6D64', borderRadius: 12, overflow: 'hidden', marginRight: 8, fontWeight: '700' }, selected: { backgroundColor: '#19734B', color: '#FFF' },
   saved: { color: '#19734B', fontWeight: '800', marginTop: 18, textAlign: 'center' }, submit: { height: 54, borderRadius: 16, backgroundColor: '#19734B', alignItems: 'center', justifyContent: 'center', marginTop: 18 }, submitText: { color: '#FFF', fontWeight: '900', fontSize: 16 },

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { getUserProfile, listReceivedReviews } from '../api/client';
-import { countPraises, mannerFace, ratingLabel } from '../screens/ProfileScreen';
+import { countPraises, mannerFace, ratingLabel } from '../lib/reviews';
 import { NeighborProfile, ReceivedReview } from '../types';
 
 // 게시물 작성자 등 다른 이웃의 매너 온도·칭찬·후기 (정식 모드 + 로그인 필요)

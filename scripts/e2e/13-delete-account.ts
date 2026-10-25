@@ -52,7 +52,7 @@ const pw = 'password1234';
   assert.equal((await api.listChatRooms()).length, 0); step('남은 사람 채팅 목록에서 탈퇴자와의 대화 모두 사라짐');
   assert.equal((await api.listReceivedReviews()).length, 0); step('탈퇴자가 쓴 후기 삭제');
   assert.deepEqual(await api.getReviewNotifications(), { pendingReviews: 0, newReviews: 0 });
-  assert.deepEqual(await api.listLikedPostIds(), []); step('탈퇴자 게시물에 대한 찜·남길 후기 정리');
+  assert.deepEqual((await api.listLikedPosts()).map((p) => p.id), []); step('탈퇴자 게시물에 대한 찜·남길 후기 정리');
   const stats = (await api.getMyStats())!;
   assert.equal(stats.mannerTemperature, 36.5); assert.equal(stats.completedPosts, 1); step('남은 사람 게시물은 그대로(나눔 완료 1), 매너 온도는 탈퇴자 후기만큼 되돌아감');
   assert.equal((await api.listPosts(home)).some((p) => p.id === aPost.id), false); step('탈퇴자 게시물 목록에서 사라짐');

@@ -1,11 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Pool } from 'pg';
 import { DATABASE_POOL } from '../../database/database.module';
-import { ChatMessageRecord, ChatRoomRecord } from './chat.types';
+import { AppointmentStatus, ChatMessageRecord, ChatRoomRecord } from './chat.types';
 
 type RoomRow = {
   id: string; post_id: string; post_title: string; owner_id: string;
   requester_id: string; meet_at: string | null; meet_place: string | null; created_at: Date;
+  meet_status: AppointmentStatus | null; meet_proposed_by: string | null;
   partner_nickname?: string; last_message?: string | null; last_message_at?: Date | null; unread_count?: number;
 };
 type MessageRow = {
@@ -28,7 +29,7 @@ export class ChatRepository {
          DO UPDATE SET post_id = EXCLUDED.post_id
          RETURNING *
        )
-       SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, to_char(r.meet_at, 'YYYY-MM-DD"T"HH24:MI') AS meet_at, r.meet_place, r.created_at
+       SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, to_char(r.meet_at, 'YYYY-MM-DD"T"HH24:MI') AS meet_at, r.meet_place, r.meet_status, r.meet_proposed_by, r.created_at
        FROM inserted r JOIN posts p ON p.id = r.post_id`,
       [postId, requesterId],
     );
@@ -37,7 +38,7 @@ export class ChatRepository {
 
   async listRooms(userId: string): Promise<ChatRoomRecord[]> {
     const result = await this.pool.query<RoomRow>(
-      `SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, to_char(r.meet_at, 'YYYY-MM-DD"T"HH24:MI') AS meet_at, r.meet_place, r.created_at,
+      `SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, to_char(r.meet_at, 'YYYY-MM-DD"T"HH24:MI') AS meet_at, r.meet_place, r.meet_status, r.meet_proposed_by, r.created_at,
          partner.nickname AS partner_nickname, last.message AS last_message, last.sent_at AS last_message_at,
          (SELECT COUNT(*) FROM chat_messages m WHERE m.room_id = r.id AND m.sender_id <> $1 AND m.read_at IS NULL)::int AS unread_count
        FROM chat_rooms r JOIN posts p ON p.id = r.post_id
@@ -53,7 +54,7 @@ export class ChatRepository {
 
   async findRoomForUser(roomId: string, userId: string): Promise<ChatRoomRecord | null> {
     const result = await this.pool.query<RoomRow>(
-      `SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, to_char(r.meet_at, 'YYYY-MM-DD"T"HH24:MI') AS meet_at, r.meet_place, r.created_at
+      `SELECT r.id, r.post_id, p.title AS post_title, r.owner_id, r.requester_id, to_char(r.meet_at, 'YYYY-MM-DD"T"HH24:MI') AS meet_at, r.meet_place, r.meet_status, r.meet_proposed_by, r.created_at
        FROM chat_rooms r JOIN posts p ON p.id = r.post_id
        WHERE r.id = $1 AND (r.owner_id = $2 OR r.requester_id = $2)
        LIMIT 1`,
@@ -62,8 +63,20 @@ export class ChatRepository {
     return result.rows[0] ? this.mapRoom(result.rows[0]) : null;
   }
 
-  async saveAppointment(roomId: string, meetAt: string, place: string): Promise<void> {
-    await this.pool.query('UPDATE chat_rooms SET meet_at = $2, meet_place = $3 WHERE id = $1', [roomId, meetAt, place]);
+  // 새로 잡거나 바꾼 약속은 항상 상대 수락 전(PROPOSED)
+  async saveAppointment(roomId: string, meetAt: string, place: string, proposerId: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE chat_rooms SET meet_at = $2, meet_place = $3, meet_status = 'PROPOSED', meet_proposed_by = $4 WHERE id = $1`,
+      [roomId, meetAt, place, proposerId],
+    );
+  }
+
+  async acceptAppointment(roomId: string): Promise<void> {
+    await this.pool.query(`UPDATE chat_rooms SET meet_status = 'ACCEPTED' WHERE id = $1`, [roomId]);
+  }
+
+  async clearAppointment(roomId: string): Promise<void> {
+    await this.pool.query('UPDATE chat_rooms SET meet_at = NULL, meet_place = NULL, meet_status = NULL, meet_proposed_by = NULL WHERE id = $1', [roomId]);
   }
 
   // 상대가 보낸 안 읽은 메시지를 읽음 처리
@@ -95,7 +108,7 @@ export class ChatRepository {
     return {
       id: row.id, postId: row.post_id, postTitle: row.post_title,
       ownerId: row.owner_id, requesterId: row.requester_id,
-      meetAt: row.meet_at, meetPlace: row.meet_place, partnerNickname: row.partner_nickname,
+      meetAt: row.meet_at, meetPlace: row.meet_place, meetStatus: row.meet_status, meetProposedBy: row.meet_proposed_by, partnerNickname: row.partner_nickname,
       lastMessage: row.last_message ?? undefined, lastMessageAt: row.last_message_at?.toISOString(), unreadCount: row.unread_count,
       createdAt: row.created_at.toISOString(),
     };

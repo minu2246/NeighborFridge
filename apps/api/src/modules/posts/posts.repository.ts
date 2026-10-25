@@ -17,7 +17,7 @@ type DbPostRow = {
   trade_type: PostRecord['tradeType'];
   status: PostRecord['status'];
   place_name: string | null;
-  distance_km?: string;
+  distance_km?: string | null;
   d_day?: number;
   author_nickname?: string;
   weight_grams?: number | null;
@@ -192,15 +192,31 @@ export class PostsRepository {
     );
   }
 
-  // 찜한 게시물 중 아직 거래 중인 것(최근 찜한 순)
-  async listLikedPostIds(userId: string): Promise<string[]> {
-    const result = await this.pool.query<{ post_id: string }>(
-      `SELECT l.post_id FROM post_likes l JOIN posts p ON p.id = l.post_id
+  // 찜한 게시물 중 아직 거래 중인 것(최근 찜한 순). 좌표를 주면 거리도 계산(동네 반경 밖이어도 포함)
+  async listLikedPosts(userId: string, latitude?: number, longitude?: number): Promise<PostRecord[]> {
+    const hasPoint = latitude !== undefined && longitude !== undefined;
+    const result = await this.pool.query<DbPostRow>(
+      `SELECT p.id, p.user_id, p.title, p.description, p.item_name, p.image_urls,
+         p.expiry_date::text, p.trade_type, p.status, p.place_name, p.weight_grams, p.created_at,
+         CASE WHEN $2::double precision IS NULL THEN NULL
+           ELSE ST_Distance(p.location, ST_SetSRID(ST_MakePoint($3::double precision, $2::double precision), 4326)::geography) / 1000.0 END AS distance_km,
+         p.expiry_date - (NOW() AT TIME ZONE 'Asia/Seoul')::date AS d_day,
+         u.nickname AS author_nickname
+       FROM post_likes l JOIN posts p ON p.id = l.post_id JOIN users u ON u.id = p.user_id
        WHERE l.user_id = $1 AND p.status IN ('ACTIVE', 'RESERVED')
        ORDER BY l.created_at DESC`,
-      [userId],
+      [userId, hasPoint ? latitude : null, hasPoint ? longitude : null],
     );
-    return result.rows.map((row) => row.post_id);
+    return result.rows.map((row) => this.mapRow(row));
+  }
+
+  // 인증한 동네 좌표에서 (latitude, longitude)까지 거리(km). 동네 미인증이면 null
+  async distanceFromHomeKm(userId: string, latitude: number, longitude: number): Promise<number | null> {
+    const result = await this.pool.query<{ km: number | null }>(
+      `SELECT ST_Distance(location, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography) / 1000.0 AS km FROM users WHERE id = $1`,
+      [userId, latitude, longitude],
+    );
+    return result.rows[0]?.km ?? null;
   }
 
   // 거래 당사자만, 게시물당 한 번. 조건이 안 맞으면 false.
@@ -263,7 +279,7 @@ export class PostsRepository {
       tradeType: row.trade_type,
       status: row.status,
       placeName: row.place_name,
-      distanceKm: row.distance_km === undefined ? undefined : Number(row.distance_km),
+      distanceKm: row.distance_km == null ? undefined : Number(row.distance_km),
       dDay: row.d_day,
       authorNickname: row.author_nickname,
       weightGrams: row.weight_grams ?? null,

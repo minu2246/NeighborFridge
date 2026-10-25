@@ -1,18 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PostCard } from '../components/PostCard';
+import { filterPosts } from '../lib/posts';
 import { FoodPost, Neighborhood } from '../types';
 
 export function HomeScreen({ posts, neighborhood, only, onShowAll, onNeighborhoodChange, onSelectPost }: { posts: FoodPost[]; neighborhood: Neighborhood | null; only?: 'mine' | 'liked'; onShowAll?: () => void; onNeighborhoodChange: (value: Neighborhood) => Promise<void>; onSelectPost: (post: FoodPost) => void }) {
   const [tradeFilter, setTradeFilter] = useState<'전체' | FoodPost['type']>('전체');
   const [sort, setSort] = useState<'distance' | 'expiry'>('distance');
-  const visiblePosts = useMemo(() => posts
-    .filter((post) => only === 'mine' ? post.isMine : only === 'liked' ? post.liked : true)
-    .filter((post) => Number.parseFloat(post.distance) <= (neighborhood?.radiusKm ?? 3))
-    .filter((post) => tradeFilter === '전체' || post.type === tradeFilter)
-    .sort((a, b) => sort === 'distance'
-      ? Number.parseFloat(a.distance) - Number.parseFloat(b.distance)
-      : expiryDays(a) - expiryDays(b)), [posts, neighborhood?.radiusKm, sort, tradeFilter, only]);
+  const visiblePosts = useMemo(() => filterPosts(posts, { only, radiusKm: neighborhood?.radiusKm ?? 3, trade: tradeFilter, sort }), [posts, neighborhood?.radiusKm, sort, tradeFilter, only]);
   const filters: { label: string; value: '전체' | FoodPost['type'] }[] = [
     { label: '전체', value: '전체' }, { label: '나눔', value: '나눔' },
     { label: '교환', value: '교환' }, { label: '한끼', value: '한끼 나눔' },
@@ -51,12 +46,3 @@ const styles = StyleSheet.create({
   mineBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E5F5EA', borderRadius: 16, padding: 15, marginBottom: 18 }, mineTitle: { color: '#174D35', fontWeight: '900', fontSize: 17 }, mineText: { color: '#5D776A', fontSize: 11, marginTop: 3 }, showAll: { color: '#19734B', fontWeight: '900', marginLeft: 10 },
 });
 
-function expiryDays(post: FoodPost): number {
-  if (post.expiryDate && post.expiryDate !== '2099-12-31') {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    return Math.round((new Date(`${post.expiryDate}T00:00:00`).getTime() - today.getTime()) / 86_400_000);
-  }
-  if (post.dDay === '오늘') return 0;
-  const match = post.dDay.match(/D-(\d+)/);
-  return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
-}
