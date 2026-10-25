@@ -4,7 +4,9 @@
 > Claude Code / Codex / ChatGPT 간 작업 인수인계 문서입니다. 작업 시작 시 먼저 읽고, 작업 종료 시 갱신합니다. (하단 "AI 작업 규칙" 참고)
 
 ## 0. 다음 세션 빠른 시작 (2026-10-25)
-- **현재 상태**: 상대 프로필·관심 목록(찜)·마이그레이션 실행 스크립트 구현, 커밋 `ad8dc8f`로 `origin/main`에 푸시함. 그 뒤 후기 알림 구현(아래)도 커밋·푸시함. 이어서 알림 설정·계정 설정·상세 화면 오류 표시 버그 수정(아래)도 커밋·푸시함. 그 뒤 회원 탈퇴 구현(아래)도 커밋·푸시함. 이어서 약속 수락 흐름·이메일 변경·모바일 테스트·관심 목록 반경 밖·게시물별 거래 위치·배지 자동 갱신(아래 "2026-10-25 묶음")도 커밋·푸시함. 서버·Docker 컨테이너는 모두 꺼 둠(Docker Desktop은 부팅 자동 시작 꺼짐)
+- **현재 상태 (2026-10-25 세션 종료)**: 미커밋 변경 없음, `main` = `origin/main`(마지막 기능 커밋 `e1750b7`). 서버·Docker 컨테이너는 모두 꺼 둠(Docker Desktop은 부팅 자동 시작 꺼짐)
+- **바로 할 일**: 아래 "다음 작업: 배포 준비" 1번(**`/api/local/*` 무인증 노출 차단 + 인증 업로드**)부터. 배포 자체(Neon·Render·R2 가입)는 사용자가 계정을 만든 뒤
+- **이번 세션(10/25)에 한 것**: 상대 프로필(`ad8dc8f`) · 찜 · `db:migrate` · 후기 알림 배지(`a72024b`) · 알림/계정 설정 + 상세 오류 표시 버그(`bde425e`) · 회원 탈퇴(`aa9d719`) · 약속 수락 흐름·이메일 변경·모바일 테스트·게시물별 거래 위치·관심 목록 반경 밖·배지 30초 갱신(`e1750b7`). 각 항목 상세는 바로 아래
 - **2026-10-25 상대 프로필**: `GET /users/:id/profile`(닉네임·동네·통계, 이메일·좌표 제외), `GET /reviews/received?userId=`(없으면 내 후기). 게시물 상세에서 작성자 줄을 누르면 `components/NeighborProfileCard.tsx`(매너 온도·칭찬 상위 3·최근 후기 3) 펼침. `ProfileScreen`의 칭찬 집계를 `countPraises`로 꺼내 공유. 채팅방 머리글의 상대 이름(▾)을 눌러도 같은 카드가 펼쳐짐(`ChatTarget.neighborId`). E2E `09-neighbor-profile.ts` 추가. 브라우저(http://localhost:8081)에서 게시물 상세·채팅방 두 곳 모두 카드 표시 확인(2026-10-25)
 - **2026-10-25 관심 목록(찜)**: 테이블 `post_likes`(`migrations/007`, `init/001`에도 추가, 개발 DB에 적용함). API `PUT·DELETE /posts/:id/like`, `GET /posts/liked`(거래 중인 찜 게시물 id, 최근 순). 앱: 상세 ♡ 버튼(내 게시물·로컬 모드·데모 진입은 비활성), 프로필 "관심 목록 N" → 홈에서 찜한 것만 보기. HomeScreen `mineOnly` → `only: 'mine' | 'liked'`로 바꿈. E2E `10-likes.ts`, 브라우저에서 찜→관심 목록 확인.
 - **2026-10-25 마이그레이션 실행**: `npm run db:migrate`(`scripts/db-migrate.mjs`, `pg` + `.env`의 `DATABASE_URL`). `migrations/*.sql` 중 `schema_migrations`에 없는 것을 이름순으로 트랜잭션 적용·기록, 실패 시 롤백·중단(종료 코드 1), UTF-8 BOM 제거. 확인한 것: 개발 DB 첫 실행 6개 적용→두 번째 "없음", 임시 새 DB(init/001 → migrate) 정상 후 삭제, 일부러 실패하는 임시 마이그레이션이 롤백·미기록. 개발 DB는 009까지 기록됨
@@ -49,9 +51,10 @@
   5. 게시물 단위 1:1 실시간 채팅
 - 이후 확장: 사진 기반 자동 등록(소비기한·품목·알레르기 성분 → 게시물 자동 작성, 7절 참고), 레시피 추천, 탄소 절감량·매너 등급
 
-## 2. Git 상태 (2026-10-21 기준)
-- 브랜치: `main` (`origin/main`과 동기화), stash 없음
+## 2. Git 상태 (2026-10-25 기준)
+- 브랜치: `main` (`origin/main`과 동기화), stash 없음, 미커밋 변경 없음
 - 원격: `https://github.com/minu2246/NeighborFridge.git`
+- 2026-10-25 커밋·push: `ad8dc8f`(상대 프로필·찜·db:migrate), `c815aaf`(docs), `a72024b`(후기 알림), `bde425e`(알림/계정 설정·버그), `aa9d719`(회원 탈퇴), `e1750b7`(약속 수락·이메일 변경·모바일 테스트·거래 위치), `f0760ce`(배포 준비 계획 docs) + 이 HANDOFF 갱신 커밋
 - 2026-10-20 커밋·push: `d8e9c0d`(약속 시간 검증·start:api 수정), `0042ae7`(로그인 유지·닉네임·설명), `b0881ea`(프로필 통계·후기/매너 온도·OCR 1차), 2026-10-21 무게·탄소·채팅 목록·후기 확장·빈 채팅방 수정·PaddleOCR 교체 커밋(이 HANDOFF 포함). 미커밋 변경 없음
 - 미추적(의도적으로 커밋 제외): `graphify-out/`(자동 생성물, 현재 코드 기준으로 오래됨), `team-reference/`(팀원 원본 자료)
 - 최근 흐름(10/21): 무게·탄소 절감 → 채팅 목록(마지막 메시지·안 읽음) → 후기 칭찬 항목 → 빈 채팅방 버그 수정 → 실사진 OCR 실패 확인 → PaddleOCR 교체
@@ -93,10 +96,18 @@ npm workspaces 모노레포 (Node >= 22). workspace는 `apps/api`, `apps/mobile`
 - 포장지 OCR: `POST /ocr/label` → compose `ocr` 서비스(PaddleOCR, `infra/ocr`) 인식 + 규칙 해석 `modules/ocr/label-parser.ts`
 - 게시물 무게(`weightGrams`)·탄소 절감 추정, 채팅 목록 마지막 메시지·안 읽은 수(읽음 처리), 후기 칭찬 항목·받은 후기(`GET /reviews/received`, `?userId=`로 다른 이웃 후기)
 - 다른 이웃 프로필: `GET /users/:id/profile` (닉네임·동네·통계, 이메일·좌표 제외)
+- 찜: `PUT·DELETE /posts/:id/like`, `GET /posts/liked?latitude&longitude`(거래 중인 찜 게시물, 반경 무관)
+- 후기 알림: `GET /reviews/notifications`, 내 후기 조회 시 읽음 처리·`isNew`
+- 계정: `PATCH /users/me`(닉네임·`notifyReviews`), `PATCH /users/me/password`, `PATCH /users/me/email`, `DELETE /users/me`(완전 삭제) — 모두 민감한 변경은 비밀번호 확인
+- 약속: 저장 = 제안(PROPOSED), `POST /chats/rooms/:id/appointment/respond`로 상대가 수락/거절
+- 게시물 등록: 거래 좌표가 인증한 동네 10km 이내인지 검사
+- `npm run db:migrate`: `migrations/*.sql` 미적용분 적용·기록(`schema_migrations`)
 
 ### Mobile (`apps/mobile`)
 - 화면: 인증(데모 진입 포함), 위치(동네 인증/직접 입력), 홈(필터·정렬·내 게시물), 등록(사진 선택, 소비기한 `DatePickerModal`), 게시물 상세(작성자 상태 변경), 채팅(거래 약속 배너·입력 폼), 프로필
 - 로그인 유지(앱 `expo-secure-store`, 웹 `localStorage`)·로그아웃, 프로필 통계·매너 온도·후기 남기기, 거래 완료 시 거래 상대 선택, 등록 화면 "포장지 사진으로 자동 작성"
+- 상대 프로필 카드(게시물 상세·채팅방), ♡ 찜·관심 목록, 탭 배지(채팅 = 안 읽음 + 받은 약속 제안, 프로필 = 남길 후기 + 새 후기, 30초 갱신), 약속 수락/거절, 설정 화면(`SettingsScreen`: 후기 알림, 이메일·닉네임·비밀번호 변경, 회원 탈퇴), 등록 화면 "지금 위치로"
+- 순수 로직은 `src/lib/{posts,reviews,chat}.ts`, 테스트 `src/lib/lib.test.ts`(node:test)
 - Android 뒤로가기 처리 (`BackHandler`)
 - API 연결 표시: 연결 시 "API 연결됨", 실패 시 데모 데이터(`data/demo.ts`)
 - API 호출은 `api/client.ts`에서 모드 분기: 기본은 정식 API(JWT Bearer), `EXPO_PUBLIC_USE_LOCAL_STORE=true`이면 `/api/local/*`
