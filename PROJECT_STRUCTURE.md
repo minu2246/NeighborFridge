@@ -17,8 +17,6 @@ NeighborFridge/
 ├─ storage/         # 로컬 생성 파일; 내용은 Git에서 제외
 ├─ .env.example
 ├─ .gitignore
-├─ FILE_MANAGEMENT.md
-├─ LOCAL_STORAGE_PLAN.md
 └─ README.md
 ```
 

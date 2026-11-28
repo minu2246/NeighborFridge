@@ -38,3 +38,13 @@ Thumbs.db
 # Local-only inventories
 /LOCAL_FILE_INVENTORY.json
 /LOCAL_GIT_AUTH_STATUS.json
+
+# AI 작업 규칙·인수인계·로컬 관리 문서: PC에만 두고 GitHub에 올리지 않음 (2026-11-28 사용자 결정)
+/AGENTS.md
+/CLAUDE.md
+/HANDOFF.md
+/FILE_MANAGEMENT.md
+/LOCAL_STORAGE_PLAN.md
+/LOGIN_EXPO.ps1
+/SETUP_GIT_AUTH.ps1
+/EXTERNAL_RESOURCES.json

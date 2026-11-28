@@ -139,5 +139,3 @@ npx tsx scripts/e2e/08-ocr-real-photos.ts         # 실사진 OCR (로컬 사진
 | [docs/architecture.md](docs/architecture.md) | MVP 아키텍처 |
 | [apps/api/README.md](apps/api/README.md) | API 엔드포인트 |
 | [apps/mobile/README.md](apps/mobile/README.md) | 모바일 실행 방법 |
-| [HANDOFF.md](HANDOFF.md) | 개발 진행 현황과 인수인계 |
-| [FILE_MANAGEMENT.md](FILE_MANAGEMENT.md) | 파일 저장 원칙, 프로젝트 종료 시 정리 방법 |
